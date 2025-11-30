@@ -1,0 +1,172 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Modern Maroon Professional Color Palette */
+    --background: 0 25% 98%;
+    --foreground: 0 20% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 20% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 20% 15%;
+
+    --primary: 0 75% 25%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 0 15% 92%;
+    --secondary-foreground: 0 20% 15%;
+
+    --muted: 0 15% 94%;
+    --muted-foreground: 0 15% 45%;
+
+    --accent: 0 50% 70%;
+    --accent-foreground: 0 20% 15%;
+
+    --destructive: 0 75% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 15% 88%;
+    --input: 0 15% 94%;
+    --ring: 0 70% 35%;
+
+    --success: 142 70% 45%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 90% 55%;
+    --warning-foreground: 0 20% 15%;
+
+    --info: 0 70% 50%;
+    --info-foreground: 0 0% 100%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 0 25% 97%;
+    --sidebar-foreground: 0 20% 15%;
+    --sidebar-primary: 0 70% 35%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 15% 94%;
+    --sidebar-accent-foreground: 0 20% 15%;
+    --sidebar-border: 0 15% 88%;
+    --sidebar-ring: 0 70% 35%;
+  }
+
+  .dark {
+    /* Modern Dark Maroon Professional Color Palette */
+    --background: 0 30% 8%;
+    --foreground: 0 20% 95%;
+
+    --card: 0 25% 12%;
+    --card-foreground: 0 20% 95%;
+
+    --popover: 0 25% 12%;
+    --popover-foreground: 0 20% 95%;
+
+    --primary: 0 75% 30%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 0 20% 18%;
+    --secondary-foreground: 0 20% 95%;
+
+    --muted: 0 20% 15%;
+    --muted-foreground: 0 15% 65%;
+
+    --accent: 0 50% 60%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 75% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 20% 22%;
+    --input: 0 20% 18%;
+    --ring: 0 70% 50%;
+
+    --success: 142 70% 50%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 90% 55%;
+    --warning-foreground: 0 20% 95%;
+
+    --info: 0 70% 55%;
+    --info-foreground: 0 0% 100%;
+
+    --sidebar-background: 0 30% 10%;
+    --sidebar-foreground: 0 20% 95%;
+    --sidebar-primary: 0 70% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 20% 15%;
+    --sidebar-accent-foreground: 0 20% 95%;
+    --sidebar-border: 0 20% 22%;
+    --sidebar-ring: 0 70% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Enhanced Hover Effects with Bright Red */
+@layer components {
+  .nav-hover:hover {
+    @apply bg-red-50 border-red-200 transition-all duration-200;
+  }
+
+  .button-hover:hover {
+    @apply bg-red-500 text-white shadow-lg transform scale-[1.02] transition-all duration-200;
+  }
+
+  .card-hover:hover {
+    @apply shadow-xl border-red-300 bg-red-50/50 transition-all duration-200;
+  }
+
+  .icon-hover:hover {
+    @apply text-red-500 transform scale-110 transition-all duration-200;
+  }
+
+  .red-glow:hover {
+    @apply shadow-red-500/25 shadow-lg transition-all duration-200;
+  }
+
+  /* Fix for data box UI color issues when pasting */
+  .data-box {
+    @apply bg-card border border-border rounded-lg p-4 transition-colors duration-200;
+    background-color: hsl(var(--card)) !important;
+    border-color: hsl(var(--border)) !important;
+    color: hsl(var(--foreground)) !important;
+  }
+
+  .data-box:focus-within {
+    @apply ring-2 ring-primary/20 border-primary/40;
+  }
+
+  /* Prevent browser autocomplete styling */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px hsl(var(--card)) inset !important;
+    -webkit-text-fill-color: hsl(var(--foreground)) !important;
+    background-color: hsl(var(--card)) !important;
+    border-color: hsl(var(--border)) !important;
+  }
+
+  /* Ensure consistent card styling */
+  .card-consistent {
+    background-color: hsl(var(--card)) !important;
+    border-color: hsl(var(--border)) !important;
+    color: hsl(var(--foreground)) !important;
+  }
+}
