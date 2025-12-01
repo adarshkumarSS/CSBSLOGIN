@@ -12,6 +12,16 @@ const pool = new Pool({
   connectionTimeoutMillis: 2000,
 });
 
+// Diagnostic: print DB env types (avoid printing actual password in production)
+console.log('DB env:', {
+  host: process.env.DB_HOST,
+  port: process.env.DB_PORT,
+  database: process.env.DB_NAME,
+  user: process.env.DB_USER,
+  passwordType: typeof process.env.DB_PASSWORD,
+  passwordLength: process.env.DB_PASSWORD ? String(process.env.DB_PASSWORD).length : 0
+});
+
 // Test database connection
 pool.on('connect', () => {
   console.log('✅ Connected to PostgreSQL database');

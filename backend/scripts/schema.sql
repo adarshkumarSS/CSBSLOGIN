@@ -56,3 +56,22 @@ CREATE TRIGGER update_students_updated_at BEFORE UPDATE ON students
 
 CREATE TRIGGER update_faculty_updated_at BEFORE UPDATE ON faculty
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Create password reset OTP table
+CREATE TABLE IF NOT EXISTS password_reset_otps (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    user_type VARCHAR(20) NOT NULL, -- 'student' or 'faculty'
+    email VARCHAR(150) NOT NULL,
+    otp VARCHAR(6) NOT NULL,
+    is_used BOOLEAN DEFAULT FALSE,
+    expires_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_user_id_student FOREIGN KEY (user_id) REFERENCES students(id) ON DELETE CASCADE,
+    CONSTRAINT fk_user_id_faculty FOREIGN KEY (user_id) REFERENCES faculty(id) ON DELETE CASCADE
+);
+
+-- Create index for password reset OTPs
+CREATE INDEX IF NOT EXISTS idx_password_reset_otps_email ON password_reset_otps(email);
+CREATE INDEX IF NOT EXISTS idx_password_reset_otps_user_id ON password_reset_otps(user_id);
+CREATE INDEX IF NOT EXISTS idx_password_reset_otps_expires_at ON password_reset_otps(expires_at);

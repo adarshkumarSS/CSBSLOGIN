@@ -116,6 +116,17 @@ const Login = () => {
               <Button type="submit" className="w-full button-hover" disabled={isLoading}>
                 {isLoading ? 'Logging in...' : 'Login'}
               </Button>
+
+              <div className="text-center mt-4">
+                <Button
+                  type="button"
+                  variant="link"
+                  className="text-sm"
+                  onClick={() => navigate('/forgot-password')}
+                >
+                  Forgot Password?
+                </Button>
+              </div>
             </form>
           </CardContent>
         </Card>

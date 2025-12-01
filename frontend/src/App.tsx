@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { ComplaintProvider } from "./contexts/ComplaintContext";
 import Login from "./pages/Login";
+import ForgotPassword from "./pages/ForgotPassword";
 import NotFound from "./pages/NotFound";
 import SelectYear from "./pages/SelectYear";
 import StudentDashboard from "./pages/dashboards/StudentDashboard";
@@ -38,6 +39,7 @@ const AppRoutes = () => {
   return (
     <Routes>
       <Route path="/" element={user ? <Navigate to={`/${user.role}/dashboard`} replace /> : <Login />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
 
       {/* Student Routes */}
       <Route path="/student/select-year" element={
