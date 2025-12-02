@@ -75,3 +75,42 @@ CREATE TABLE IF NOT EXISTS password_reset_otps (
 CREATE INDEX IF NOT EXISTS idx_password_reset_otps_email ON password_reset_otps(email);
 CREATE INDEX IF NOT EXISTS idx_password_reset_otps_user_id ON password_reset_otps(user_id);
 CREATE INDEX IF NOT EXISTS idx_password_reset_otps_expires_at ON password_reset_otps(expires_at);
+
+
+ALTER TABLE students
+    ADD COLUMN IF NOT EXISTS date_of_birth DATE,
+    ADD COLUMN IF NOT EXISTS gender VARCHAR(10),
+    ADD COLUMN IF NOT EXISTS blood_group VARCHAR(5),
+    ADD COLUMN IF NOT EXISTS community VARCHAR(5),
+    ADD COLUMN IF NOT EXISTS re_caste VARCHAR(30),
+
+    ADD COLUMN IF NOT EXISTS address_line1 TEXT,
+    ADD COLUMN IF NOT EXISTS address_line2 TEXT,
+    ADD COLUMN IF NOT EXISTS city VARCHAR(100),
+    ADD COLUMN IF NOT EXISTS state VARCHAR(100),
+    ADD COLUMN IF NOT EXISTS pincode VARCHAR(10),
+
+    ADD COLUMN IF NOT EXISTS father_name VARCHAR(150),
+    ADD COLUMN IF NOT EXISTS father_phone VARCHAR(15),
+    ADD COLUMN IF NOT EXISTS father_desi VARCHAR(30),
+    ADD COLUMN IF NOT EXISTS mother_name VARCHAR(150),
+    ADD COLUMN IF NOT EXISTS mother_phone VARCHAR(15),
+    ADD COLUMN IF NOT EXISTS mother_desi VARCHAR(30),
+
+    ADD COLUMN IF NOT EXISTS section VARCHAR(10),
+    ADD COLUMN IF NOT EXISTS batch VARCHAR(20),
+    ADD COLUMN IF NOT EXISTS family_income VARCHAR(10),
+    ADD COLUMN IF NOT EXISTS sslc_school_name VARCHAR(30),
+    ADD COLUMN IF NOT EXISTS sslc_school_address VARCHAR(150),
+    ADD COLUMN IF NOT EXISTS sslc_marks VARCHAR(5),
+    ADD COLUMN IF NOT EXISTS tot_sslc_marks VARCHAR(5),
+    ADD COLUMN IF NOT EXISTS hsc_school_name VARCHAR(30),
+    ADD COLUMN IF NOT EXISTS hsc_school_address VARCHAR(150),
+    ADD COLUMN IF NOT EXISTS hsc_marks VARCHAR(5),
+    ADD COLUMN IF NOT EXISTS tot_hsc_marks VARCHAR(5),
+    ADD COLUMN IF NOT EXISTS hsc_cutoff VARCHAR(5),
+    ADD COLUMN IF NOT EXISTS diploma_clg_name VARCHAR(30),
+    ADD COLUMN IF NOT EXISTS diploma_clg_address VARCHAR(150),
+    ADD COLUMN IF NOT EXISTS diploma_marks VARCHAR(5),
+    ADD COLUMN IF NOT EXISTS tot_diploma_marks VARCHAR(5),
+    ADD COLUMN IF NOT EXISTS profile_photo_url TEXT;
