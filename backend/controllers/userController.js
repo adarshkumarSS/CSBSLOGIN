@@ -45,11 +45,10 @@ const userController = {
         values = [name, email, hashedPassword, userData.rollNumber, userData.year, userData.department, userData.phone];
       } else {
         query = `
-          INSERT INTO faculty (name, email, password_hash, employee_id, department, designation, phone)
-          VALUES ($1, $2, $3, $4, $5, $6, $7)
-          RETURNING id, name, email, employee_id as roll_number, department, designation, phone, 'faculty' as role
-        `;
-        values = [name, email, hashedPassword, userData.employeeId, userData.department, userData.designation, userData.phone];
+          INSERT INTO faculty (name, email, password_hash, employee_id, department, designation, phone, years_of_experience, degree, works,educational_qualifications,awards_honours,other_achievements)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+          RETURNING id, name, email, employee_id as roll_number, department, designation, phone, years_of_experience, degree, works,educational_qualifications,awards_honours,other_achievements,  'faculty' as role`;
+        values = [name, email, hashedPassword, userData.employeeId, userData.department, userData.designation, userData.phone, userData.yearsOfExperience, userData.degree, userData.works];
       }
 
       const result = await pool.query(query, values);
@@ -86,11 +85,11 @@ const userController = {
       } else {
         query = `
           UPDATE faculty
-          SET name = $1, email = $2, employee_id = $3, department = $4, designation = $5, phone = $6, updated_at = CURRENT_TIMESTAMP
-          WHERE id = $7
-          RETURNING id, name, email, employee_id as roll_number, department, designation, phone, 'faculty' as role
+          SET name = $1, email = $2, employee_id = $3, department = $4, designation = $5, phone = $6, years_of_experience = $7, degree = $8, works = $9, educational_qualifications = $10, awards_honours = $11, other_achievements = $12, updated_at = CURRENT_TIMESTAMP
+          WHERE id = $13
+          RETURNING id, name, email, employee_id as roll_number, department, designation, phone, years_of_experience, degree, works, educational_qualifications, awards_honours, other_achievements,'faculty' as role
         `;
-        values = [name, email, userData.employeeId, userData.department, userData.designation, userData.phone, id];
+        values = [name, email, userData.employeeId, userData.department, userData.designation, userData.phone, userData.yearsOfExperience, userData.degree, userData.works, id];
       }
 
       const result = await pool.query(query, values);
@@ -163,7 +162,7 @@ const userController = {
         FROM students WHERE 1=1
       `;
       let facultyQuery = `
-        SELECT id, name, email, employee_id, department, designation, phone, 'faculty' as role
+        SELECT id, name, email, employee_id, department, designation, phone, years_of_experience, degree, works, educational_qualifications, awards_honours, other_achievements, 'faculty' as role
         FROM faculty WHERE 1=1
       `;
 

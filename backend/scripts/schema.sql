@@ -31,6 +31,12 @@ CREATE TABLE IF NOT EXISTS faculty (
     department VARCHAR(50) NOT NULL,
     designation VARCHAR(50),
     phone VARCHAR(15),
+    years_of_experience INTEGER,
+    degree VARCHAR(100),
+    works TEXT, -- This can store a JSON array of publication/work details
+    educational_qualifications TEXT, 
+    awards_honours TEXT,
+    other_achievements TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
