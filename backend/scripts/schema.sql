@@ -75,3 +75,12 @@ CREATE TABLE IF NOT EXISTS password_reset_otps (
 CREATE INDEX IF NOT EXISTS idx_password_reset_otps_email ON password_reset_otps(email);
 CREATE INDEX IF NOT EXISTS idx_password_reset_otps_user_id ON password_reset_otps(user_id);
 CREATE INDEX IF NOT EXISTS idx_password_reset_otps_expires_at ON password_reset_otps(expires_at);
+
+ALTER TABLE faculty
+    ADD COLUMN IF NOT EXISTS years_of_experience INTEGER,
+    ADD COLUMN IF NOT EXISTS degree VARCHAR(100),
+    ADD COLUMN IF NOT EXISTS works TEXT,-- This can store a JSON array of publication/work details
+    ADD COLUMN IF NOT EXISTS educational_qualifications TEXT,
+    ADD COLUMN IF NOT EXISTS awards_honours TEXT,
+    ADD COLUMN IF NOT EXISTS other_achievements TEXT;
+    
