@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const pool = require('../config/database');
+const Student = require('../models/Student');
+const Faculty = require('../models/Faculty');
 
 const authController = {
   // Login for both students and faculty
@@ -39,35 +40,32 @@ const authController = {
 
       // Determine user type based on email domain
       let userType = 'student';
-      let tableName = 'students';
       let user = null;
 
       if (email.includes('@tce.edu') || email.includes('@thiagarajar')) {
-        // Check if it's HOD by designation
-        const facultyResult = await pool.query('SELECT * FROM faculty WHERE email = $1', [email]);
-        if (facultyResult.rows.length > 0 && facultyResult.rows[0].designation === 'HOD') {
-          userType = 'hod';
-          tableName = 'faculty';
-          user = facultyResult.rows[0];
-        } else {
-          userType = 'faculty';
-          tableName = 'faculty';
+        // Try to find in Faculty collection
+        const faculty = await Faculty.findOne({ email });
+        
+        if (faculty) {
+           userType = 'faculty';
+           user = faculty;
+           if (faculty.designation === 'HOD') {
+             userType = 'hod';
+           }
         }
+      } else {
+        // Try to find in Student collection
+        user = await Student.findOne({ email });
       }
 
-      // Query the appropriate table
-      const query = `SELECT * FROM ${tableName} WHERE email = $1`;
-      const result = await pool.query(query, [email]);
-
-      if (result.rows.length === 0) {
+      // If not found in the deduced collection, or if userType set but not found
+      if (!user) {
         return res.status(401).json({
           success: false,
           message: 'Email does not exist',
           errorType: 'email_not_found'
         });
       }
-
-      user = result.rows[0];
 
       // Verify password
       const isValidPassword = await bcrypt.compare(password, user.password_hash);
@@ -82,7 +80,7 @@ const authController = {
       // Generate JWT token
       const token = jwt.sign(
         {
-          id: user.id,
+          id: user._id, // Use _id for MongoDB
           email: user.email,
           role: userType,
           name: user.name,
@@ -91,7 +89,7 @@ const authController = {
             year: user.year,
             department: user.department
           }),
-          ...(userType === 'faculty' && {
+          ...(userType === 'faculty' && { // Covers faculty and hod
             employeeId: user.employee_id,
             designation: user.designation,
             department: user.department
@@ -108,7 +106,7 @@ const authController = {
         data: {
           token,
           user: {
-            id: user.id,
+            id: user._id, // Mapping _id to id for frontend compatibility
             name: user.name,
             email: user.email,
             role: userType,
@@ -118,7 +116,7 @@ const authController = {
               department: user.department,
               phone: user.phone
             }),
-            ...(userType === 'faculty' && {
+            ...((userType === 'faculty' || userType === 'hod') && {
               employeeId: user.employee_id,
               designation: user.designation,
               department: user.department,
@@ -129,6 +127,7 @@ const authController = {
       });
 
     } catch (error) {
+      console.error('Login error:', error);
       res.status(500).json({
         success: false,
         message: 'Internal server error'
@@ -145,6 +144,7 @@ const authController = {
         data: req.user
       });
     } catch (error) {
+       console.error('Get profile error:', error);
       res.status(500).json({
         success: false,
         message: 'Internal server error'

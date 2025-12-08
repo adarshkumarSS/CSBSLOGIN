@@ -1,7 +1,10 @@
 const bcrypt = require('bcryptjs');
 const nodemailer = require('nodemailer');
 const otpGenerator = require('otp-generator');
-const pool = require('../config/database');
+// models
+const Student = require('../models/Student');
+const Faculty = require('../models/Faculty');
+const PasswordResetOTP = require('../models/PasswordResetOTP');
 
 // Configure email transporter (update these with your email service credentials)
 const transporter = nodemailer.createTransport({
@@ -34,23 +37,20 @@ const passwordResetController = {
         });
       }
 
-      // Determine table name
-      const tableName = userType === 'student' ? 'students' : 'faculty';
-
       // Check if user exists
-      const userResult = await pool.query(
-        `SELECT id, email, name FROM ${tableName} WHERE email = $1`,
-        [email]
-      );
+      let user;
+      if (userType === 'student') {
+        user = await Student.findOne({ email });
+      } else {
+        user = await Faculty.findOne({ email });
+      }
 
-      if (userResult.rows.length === 0) {
+      if (!user) {
         return res.status(404).json({
           success: false,
           message: 'Email not found in our system'
         });
       }
-
-      const user = userResult.rows[0];
 
       // Generate OTP
       const otp = otpGenerator.generate(6, {
@@ -64,17 +64,19 @@ const passwordResetController = {
 
       // Store OTP in database
       try {
-        await pool.query(
-          `INSERT INTO password_reset_otps (user_id, user_type, email, otp, expires_at) 
-           VALUES ($1, $2, $3, $4, $5)`,
-          [user.id, userType, email, otp, expiresAt]
-        );
+        await PasswordResetOTP.create({
+          user_id: user._id,
+          user_type: userType,
+          email: email,
+          otp: otp,
+          expires_at: expiresAt
+        });
       } catch (dbErr) {
-        console.error('DB error inserting OTP:', dbErr && dbErr.stack ? dbErr.stack : dbErr);
+        console.error('DB error inserting OTP:', dbErr);
         return res.status(500).json({
           success: false,
           message: 'Database error while creating OTP',
-          error: dbErr.message || String(dbErr)
+          error: dbErr.message
         });
       }
 
@@ -121,7 +123,7 @@ const passwordResetController = {
       });
 
     } catch (error) {
-      console.error('Forgot password error:', error && error.stack ? error.stack : error);
+      console.error('Forgot password error:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to send OTP. Please try again later.',
@@ -143,38 +145,38 @@ const passwordResetController = {
       }
 
       // Check if OTP exists and is valid
-      const otpResult = await pool.query(
-        `SELECT * FROM password_reset_otps 
-         WHERE email = $1 AND otp = $2 AND user_type = $3 AND is_used = FALSE AND expires_at > NOW()
-         ORDER BY created_at DESC LIMIT 1`,
-        [email, otp, userType]
-      );
+      // Mongoose: find latest valid OTP
+      const otpRecord = await PasswordResetOTP.findOne({
+        email: email,
+        otp: otp,
+        user_type: userType,
+        is_used: false,
+        expires_at: { $gt: new Date() }
+      }).sort({ created_at: -1 });
 
-      if (otpResult.rows.length === 0) {
+      if (!otpRecord) {
         return res.status(400).json({
           success: false,
           message: 'Invalid or expired OTP'
         });
       }
 
-      const otpRecord = otpResult.rows[0];
-
       // Mark OTP as used
-      await pool.query(
-        `UPDATE password_reset_otps SET is_used = TRUE WHERE id = $1`,
-        [otpRecord.id]
-      );
+      otpRecord.is_used = true;
+      await otpRecord.save();
 
       // Generate a temporary reset token (valid for 15 minutes)
       const resetToken = require('crypto').randomBytes(32).toString('hex');
       const resetTokenExpiry = new Date(Date.now() + 15 * 60000);
 
       // Store reset token in database
-      await pool.query(
-        `INSERT INTO password_reset_otps (user_id, user_type, email, otp, expires_at) 
-         VALUES ($1, $2, $3, $4, $5)`,
-        [otpRecord.user_id, userType, email, resetToken, resetTokenExpiry]
-      );
+      await PasswordResetOTP.create({
+        user_id: otpRecord.user_id,
+        user_type: userType,
+        email: email,
+        otp: resetToken, // Storing reset token as 'otp' field
+        expires_at: resetTokenExpiry
+      });
 
       res.json({
         success: true,
@@ -187,7 +189,7 @@ const passwordResetController = {
       });
 
     } catch (error) {
-      console.error('Verify OTP error:', error && error.stack ? error.stack : error);
+      console.error('Verify OTP error:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to verify OTP. Please try again.',
@@ -223,35 +225,41 @@ const passwordResetController = {
       }
 
       // Verify reset token is valid
-      const tokenResult = await pool.query(
-        `SELECT * FROM password_reset_otps 
-         WHERE email = $1 AND otp = $2 AND user_type = $3 AND expires_at > NOW()
-         ORDER BY created_at DESC LIMIT 1`,
-        [email, resetToken, userType]
-      );
+      const resetRecord = await PasswordResetOTP.findOne({
+        email: email,
+        otp: resetToken,
+        user_type: userType,
+        expires_at: { $gt: new Date() },
+        is_used: false // Reset token is a new record, initially unused
+      }).sort({ created_at: -1 });
 
-      if (tokenResult.rows.length === 0) {
+      if (!resetRecord) {
         return res.status(400).json({
           success: false,
           message: 'Invalid or expired reset token'
         });
       }
 
-      const resetRecord = tokenResult.rows[0];
-
-      // Determine table name
-      const tableName = userType === 'student' ? 'students' : 'faculty';
-
       // Hash new password
       const hashedPassword = await bcrypt.hash(newPassword, 10);
 
       // Update password in database
-      const updateResult = await pool.query(
-        `UPDATE ${tableName} SET password_hash = $1 WHERE id = $2 RETURNING id, email, name`,
-        [hashedPassword, resetRecord.user_id]
-      );
+      let user;
+      if (userType === 'student') {
+        user = await Student.findByIdAndUpdate(
+          resetRecord.user_id,
+          { password_hash: hashedPassword },
+          { new: true }
+        );
+      } else {
+        user = await Faculty.findByIdAndUpdate(
+          resetRecord.user_id,
+          { password_hash: hashedPassword },
+          { new: true }
+        );
+      }
 
-      if (updateResult.rows.length === 0) {
+      if (!user) {
         return res.status(404).json({
           success: false,
           message: 'User not found'
@@ -259,12 +267,8 @@ const passwordResetController = {
       }
 
       // Mark reset token as used
-      await pool.query(
-        `UPDATE password_reset_otps SET is_used = TRUE WHERE id = $1`,
-        [resetRecord.id]
-      );
-
-      const user = updateResult.rows[0];
+      resetRecord.is_used = true;
+      await resetRecord.save();
 
       // Send confirmation email
       const mailOptions = {
@@ -307,7 +311,7 @@ const passwordResetController = {
       });
 
     } catch (error) {
-      console.error('Reset password error:', error && error.stack ? error.stack : error);
+      console.error('Reset password error:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to reset password. Please try again.',

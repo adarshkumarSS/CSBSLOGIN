@@ -1,11 +1,22 @@
 const bcrypt = require('bcryptjs');
 const path = require('path');
+const mongoose = require('mongoose');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
-const pool = require('../config/database');
+
+// Import models
+const Student = require('../models/Student');
+const Faculty = require('../models/Faculty');
+const PasswordResetOTP = require('../models/PasswordResetOTP');
 
 async function seedDatabase() {
   try {
     console.log('🌱 Starting database seeding...');
+    
+    // Connect to MongoDB
+    if (mongoose.connection.readyState === 0) {
+        await mongoose.connect(process.env.MONGO_URI);
+        console.log('✅ Connected to MongoDB');
+    }
 
     // Sample student data
     const students = [
@@ -116,29 +127,48 @@ async function seedDatabase() {
 
     // Clear existing data
     console.log('🧹 Clearing existing data...');
-    await pool.query('DELETE FROM students');
-    await pool.query('DELETE FROM faculty');
+    await Student.deleteMany({});
+    await Faculty.deleteMany({});
+    await PasswordResetOTP.deleteMany({});
+
+    // Insert students
+    // Insert faculty FIRST so we can assign them as tutors
+    console.log('👨‍🏫 Seeding faculty...');
+    const createdFaculty = [];
+    for (const member of faculty) {
+      const hashedPassword = await bcrypt.hash(member.password, 12);
+      const newFaculty = await Faculty.create({
+          name: member.name,
+          email: member.email,
+          password_hash: hashedPassword,
+          employee_id: member.employee_id,
+          department: member.department,
+          designation: member.designation,
+          phone: member.phone
+      });
+      createdFaculty.push(newFaculty);
+    }
+
+    // Assign a default tutor (e.g., first faculty member)
+    const defaultTutor = createdFaculty[0];
 
     // Insert students
     console.log('👨‍🎓 Seeding students...');
     for (const student of students) {
       const hashedPassword = await bcrypt.hash(student.password, 12);
-      await pool.query(
-        `INSERT INTO students (name, email, password_hash, roll_number, year, department, phone)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [student.name, student.email, hashedPassword, student.roll_number, student.year, student.department, student.phone]
-      );
-    }
-
-    // Insert faculty
-    console.log('👨‍🏫 Seeding faculty...');
-    for (const member of faculty) {
-      const hashedPassword = await bcrypt.hash(member.password, 12);
-      await pool.query(
-        `INSERT INTO faculty (name, email, password_hash, employee_id, department, designation, phone)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [member.name, member.email, hashedPassword, member.employee_id, member.department, member.designation, member.phone]
-      );
+      await Student.create({
+          name: student.name,
+          email: student.email,
+          password_hash: hashedPassword,
+          roll_number: student.roll_number,
+          year: student.year, // Keep for backward compat if needed, but we rely on semester
+          semester: 5, // Default for testing
+          section: 'A', // Default
+          degree: 'B.Tech', // Default
+          department: student.department,
+          phone: student.phone,
+          tutor_id: defaultTutor._id
+      });
     }
 
     console.log('✅ Database seeding completed successfully!');

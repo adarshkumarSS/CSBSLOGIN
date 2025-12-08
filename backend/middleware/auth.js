@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
-const pool = require('../config/database');
+const Student = require('../models/Student');
+const Faculty = require('../models/Faculty');
 
 // Middleware to verify JWT token
 const authenticateToken = async (req, res, next) => {
@@ -20,21 +21,9 @@ const authenticateToken = async (req, res, next) => {
     // Get fresh user data from database
     let user = null;
     if (decoded.role === 'student') {
-      const result = await pool.query('SELECT id, name, email, roll_number, year, department, phone FROM students WHERE id = $1', [decoded.id]);
-      if (result.rows.length > 0) {
-        user = {
-          ...result.rows[0],
-          role: 'student'
-        };
-      }
+      user = await Student.findById(decoded.id).select('-password_hash');
     } else if (decoded.role === 'faculty' || decoded.role === 'hod') {
-      const result = await pool.query('SELECT id, name, email, employee_id, department, designation, phone FROM faculty WHERE id = $1', [decoded.id]);
-      if (result.rows.length > 0) {
-        user = {
-          ...result.rows[0],
-          role: decoded.role // Keep the original role (faculty or hod)
-        };
-      }
+      user = await Faculty.findById(decoded.id).select('-password_hash');
     }
 
     if (!user) {
@@ -45,7 +34,16 @@ const authenticateToken = async (req, res, next) => {
     }
 
     // Attach user data to request
-    req.user = user;
+    // Mongoose documents are objects, but if we need plain object:
+    req.user = user.toObject ? user.toObject() : user;
+    
+    // Ensure role is preserved/correct (logic from original: if hod, keeping role)
+    if (decoded.role === 'hod' && req.user.role === 'faculty') {
+        // Just for consistency if token said hod but DB says faculty (which is underlying schema)
+        // Original logic: user.role = decoded.role
+        req.user.role = decoded.role;
+    }
+
     next();
 
   } catch (error) {
