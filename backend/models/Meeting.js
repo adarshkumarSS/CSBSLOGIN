@@ -49,6 +49,31 @@ const meetingSchema = new mongoose.Schema({
   pdf_path: {
     type: String
   },
+  custom_questions: [{
+    id: String,
+    type: {
+      type: String,
+      enum: ['text', 'textarea', 'radio', 'checkbox'],
+      default: 'text'
+    },
+    question: {
+      type: String,
+      required: true
+    },
+    options: [String],
+    required: {
+      type: Boolean,
+      default: true
+    },
+    conditional: {
+      enabled: {
+        type: Boolean,
+        default: false
+      },
+      dependsOn: String, // Question ID
+      value: String // Value needed to show this question
+    }
+  }],
   created_at: {
     type: Date,
     default: Date.now

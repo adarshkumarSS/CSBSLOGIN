@@ -19,6 +19,10 @@ const studentSchema = new mongoose.Schema({
     required: true,
     unique: true
   },
+  batch: {
+    type: Number,
+    required: true
+  },
   year: {
     type: String, // Keeping as String based on usage, or Number
     required: true

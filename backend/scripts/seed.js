@@ -18,112 +18,11 @@ async function seedDatabase() {
         console.log('✅ Connected to MongoDB');
     }
 
-    // Sample student data
-    const students = [
-      {
-        name: 'Arun Kumar',
-        email: 'arun.kumar@student.tce.edu',
-        password: 'student123',
-        roll_number: 'CS001',
-        year: 'III',
-        department: 'Computer Science and Business Systems',
-        phone: '+91 9876543210'
-      },
-      {
-        name: 'Priya Sharma',
-        email: 'priya.sharma@student.tce.edu',
-        password: 'student123',
-        roll_number: 'CS002',
-        year: 'II',
-        department: 'Computer Science and Business Systems',
-        phone: '+91 9876543211'
-      },
-      {
-        name: 'Rahul Singh',
-        email: 'rahul.singh@student.tce.edu',
-        password: 'student123',
-        roll_number: 'ME001',
-        year: 'IV',
-        department: 'Computer Science and Business Systems',
-        phone: '+91 9876543212'
-      },
-      {
-        name: 'Sneha Patel',
-        email: 'sneha.patel@student.tce.edu',
-        password: 'student123',
-        roll_number: 'EE001',
-        year: 'I',
-        department: 'Computer Science and Business Systems',
-        phone: '+91 9876543213'
-      },
-      {
-        name: 'Vikram Rao',
-        email: 'vikram.rao@student.tce.edu',
-        password: 'student123',
-        roll_number: 'CE001',
-        year: 'III',
-        department: 'Computer Science and Business Systems',
-        phone: '+91 9876543214'
-      }
-    ];
+const { calculateSemesterAndYear } = require('../utils/academicHelpers');
 
-    // Sample faculty data
-    const faculty = [
-      {
-        name: 'Dr. Rajesh Kumar',
-        email: 'rajesh.kumar@tce.edu',
-        password: 'faculty123',
-        employee_id: 'FAC001',
-        department: 'Computer Science and Business Systems',
-        designation: 'Professor',
-        phone: '+91 9876543220'
-      },
-      {
-        name: 'Dr. Meera Iyer',
-        email: 'meera.iyer@tce.edu',
-        password: 'faculty123',
-        employee_id: 'FAC002',
-        department: 'Computer Science and Business Systems',
-        designation: 'Associate Professor',
-        phone: '+91 9876543221'
-      },
-      {
-        name: 'Prof. Suresh Reddy',
-        email: 'suresh.reddy@tce.edu',
-        password: 'faculty123',
-        employee_id: 'FAC003',
-        department: 'Computer Science and Business Systems',
-        designation: 'Assistant Professor',
-        phone: '+91 9876543222'
-      },
-      {
-        name: 'Dr. Anitha Venkatesh',
-        email: 'anitha.venkatesh@tce.edu',
-        password: 'faculty123',
-        employee_id: 'FAC004',
-        department: 'Computer Science and Business Systems',
-        designation: 'Professor',
-        phone: '+91 9876543223'
-      },
-      {
-        name: 'Prof. Ramesh Gupta',
-        email: 'ramesh.gupta@tce.edu',
-        password: 'faculty123',
-        employee_id: 'FAC005',
-        department: 'Computer Science and Business Systems',
-        designation: 'Associate Professor',
-        phone: '+91 9876543224'
-      },
-      {
-        name: 'Dr. Saravanan HOD',
-        email: 'saravanan.hod@tce.edu',
-        password: 'hod123',
-        employee_id: 'HOD001',
-        department: 'Computer Science and Business Systems',
-        designation: 'HOD',
-        phone: '+91 9876543225'
-      }
-    ];
+    // Load data from generated JSON files
+    const students = require('./data/students.json');
+    const faculty = require('./data/faculty.json');
 
     // Clear existing data
     console.log('🧹 Clearing existing data...');
@@ -131,7 +30,6 @@ async function seedDatabase() {
     await Faculty.deleteMany({});
     await PasswordResetOTP.deleteMany({});
 
-    // Insert students
     // Insert faculty FIRST so we can assign them as tutors
     console.log('👨‍🏫 Seeding faculty...');
     const createdFaculty = [];
@@ -156,18 +54,24 @@ async function seedDatabase() {
     console.log('👨‍🎓 Seeding students...');
     for (const student of students) {
       const hashedPassword = await bcrypt.hash(student.password, 12);
+      
+      const { year, semester } = calculateSemesterAndYear(student.batch);
+
       await Student.create({
           name: student.name,
           email: student.email,
           password_hash: hashedPassword,
           roll_number: student.roll_number,
-          year: student.year, // Keep for backward compat if needed, but we rely on semester
-          semester: 5, // Default for testing
+          batch: student.batch,
+          year: year,
+          semester: semester,
           section: 'A', // Default
           degree: 'B.Tech', // Default
           department: student.department,
           phone: student.phone,
-          tutor_id: defaultTutor._id
+          department: student.department,
+          phone: student.phone
+          // tutor_id: null // Explicitly no tutor initially
       });
     }
 

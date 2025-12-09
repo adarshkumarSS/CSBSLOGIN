@@ -44,6 +44,27 @@ interface AssignedClass {
     studentCount: number;
 }
 
+interface Course {
+    _id: string;
+    subject_name: string;
+    subject_code: string;
+    degree: string;
+    department: string;
+    year: string;
+    semester: number;
+    section: string;
+    academic_year: string;
+}
+
+interface CustomQuestion {
+    id: string;
+    type: 'text' | 'textarea' | 'radio' | 'checkbox';
+    question: string;
+    options: string[];
+    required: boolean;
+    conditional: { enabled: boolean; dependsOn?: string; value?: string };
+}
+
 const FacultyDashboard = () => {
     const { user } = useAuth();
     const [meetings, setMeetings] = useState<Meeting[]>([]);
@@ -73,11 +94,96 @@ const FacultyDashboard = () => {
     const [logMeetingStatus, setLogMeetingStatus] = useState<string>('ALL');
     const [logLoading, setLogLoading] = useState(false);
 
+    // Course Mapping State
+    const [courses, setCourses] = useState<Course[]>([]);
+    const [isCourseOpen, setIsCourseOpen] = useState(false);
+    const [courseData, setCourseData] = useState({
+        subject_name: '',
+        subject_code: '',
+        degree: 'B.Tech',
+        department: 'Computer Science and Business Systems',
+        year: 'I',
+        semester: 1,
+        section: 'A',
+        academic_year: '2025-2026'
+    });
+
+    // Custom Questions State
+    const [customQuestions, setCustomQuestions] = useState<CustomQuestion[]>([]);
+    const [qType, setQType] = useState<'text' | 'textarea' | 'radio' | 'checkbox'>('text');
+    const [qText, setQText] = useState('');
+    const [qOptions, setQOptions] = useState(''); // Comma separated
+    const [qRequired, setQRequired] = useState(true);
+    const [qConditional, setQConditional] = useState({ enabled: false, dependsOn: '', value: '' });
+
+    const addQuestion = () => {
+        if (!qText.trim()) { toast.error("Question text required"); return; }
+        const newQ: CustomQuestion = {
+            id: Date.now().toString(),
+            type: qType,
+            question: qText,
+            options: qOptions.split(',').map(o => o.trim()).filter(o => o),
+            required: qRequired,
+            conditional: qConditional.enabled ? qConditional : { enabled: false }
+        };
+        setCustomQuestions([...customQuestions, newQ]);
+        // Reset form
+        setQText('');
+        setQOptions('');
+        setQRequired(true);
+        setQType('text');
+        setQConditional({ enabled: false, dependsOn: '', value: '' });
+    };
+
+    const removeQuestion = (id: string) => {
+        setCustomQuestions(customQuestions.filter(q => q.id !== id));
+    };
+
     useEffect(() => {
         fetchMeetings();
         fetchAssignedClasses();
         fetchLogs(); // Load initial logs for side panel
+        fetchMeetings();
+        fetchAssignedClasses();
+        fetchLogs(); // Load initial logs for side panel
+        fetchCourses();
     }, []);
+
+    const fetchCourses = async () => {
+        try {
+            const res = await api.get('/courses/my-courses');
+            setCourses(res.data.data);
+        } catch (error) {
+            console.error(error);
+            // toast.error('Failed to fetch courses');
+        }
+    };
+
+    const handleAddCourse = async () => {
+        if (!courseData.subject_name || !courseData.section) {
+            toast.error("Subject and Section are required");
+            return;
+        }
+        try {
+            await api.post('/courses', courseData);
+            toast.success('Course added successfully');
+            setIsCourseOpen(false);
+            fetchCourses();
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || 'Failed to add course');
+        }
+    };
+
+    const handleDeleteCourse = async (id: string) => {
+        if (!confirm('Are you sure you want to delete this course mapping?')) return;
+        try {
+            await api.delete(`/courses/${id}`);
+            toast.success('Course deleted');
+            fetchCourses();
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || 'Failed to delete course');
+        }
+    };
 
     const fetchMeetings = async () => {
         try {
@@ -130,7 +236,8 @@ const FacultyDashboard = () => {
                 type: formData.type,
                 degree: cls.degree,
                 semester: cls.semester,
-                section: cls.section
+                section: cls.section,
+                custom_questions: customQuestions
             };
             await api.post('/meetings', payload);
             toast.success('Meeting created successfully');
@@ -249,6 +356,32 @@ const FacultyDashboard = () => {
                             <div className="flex items-center gap-2 font-semibold">
                                 <Plus className="h-5 w-5" /> Create Meeting
                             </div>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                     <Card>
+                        <CardHeader className="flex flex-row items-center justify-between pb-2">
+                            <CardTitle className="text-lg font-medium">My Courses (Subject Allocation)</CardTitle>
+                            <Button size="sm" onClick={() => setIsCourseOpen(true)}><Plus className="h-4 w-4 mr-2" /> Add Subject</Button>
+                        </CardHeader>
+                        <CardContent>
+                            {courses.length === 0 ? <p className="text-sm text-muted-foreground">No subjects allocated yet.</p> :
+                                <div className="space-y-2">
+                                    {courses.map(course => (
+                                        <div key={course._id} className="flex items-center justify-between p-2 border rounded-md text-sm">
+                                            <div>
+                                                <p className="font-semibold">{course.subject_name} <span className="text-xs text-muted-foreground">({course.subject_code})</span></p>
+                                                <p className="text-xs text-muted-foreground">{course.year} Year / Sem {course.semester} / Sec {course.section} ({course.degree})</p>
+                                            </div>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => handleDeleteCourse(course._id)}>
+                                                <XCircle className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                    ))}
+                                </div>
+                            }
                         </CardContent>
                     </Card>
                 </div>
@@ -456,7 +589,136 @@ const FacultyDashboard = () => {
                                     </Select>
                                 ) : <p className="text-sm text-red-500">No classes assigned to you.</p>}
                             </div>
+                            
+                            {/* Question Builder */}
+                            <div className="border-t pt-4">
+                                <Label className="block mb-2 font-semibold">Custom Questions (Optional)</Label>
+                                
+                                <div className="space-y-3 mb-4 max-h-[200px] overflow-auto border p-2 rounded bg-muted/20">
+                                    {customQuestions.length === 0 ? <p className="text-xs text-muted-foreground text-center">No custom questions added.</p> : 
+                                        customQuestions.map((q, idx) => (
+                                            <div key={q.id} className="flex justify-between items-start bg-background p-2 rounded border text-sm">
+                                                <div>
+                                                    <p className="font-medium">#{idx+1} {q.question} <span className="text-xs text-muted-foreground">({q.type})</span></p>
+                                                    {q.options.length > 0 && <p className="text-xs text-muted-foreground">Options: {q.options.join(', ')}</p>}
+                                                    {q.conditional.enabled && <p className="text-[10px] text-blue-600">If Q#{customQuestions.findIndex(x=>x.id===q.conditional.dependsOn)+1} = {q.conditional.value}</p>}
+                                                </div>
+                                                <Button size="icon" variant="ghost" className="h-6 w-6 text-red-500" onClick={() => removeQuestion(q.id)}><XCircle className="h-4 w-4" /></Button>
+                                            </div>
+                                        ))
+                                    }
+                                </div>
+
+                                <div className="space-y-2 border p-3 rounded bg-muted/50">
+                                    <Label className="text-xs">Add New Question</Label>
+                                    <Input value={qText} onChange={e => setQText(e.target.value)} placeholder="Question Text" className="h-8 text-sm" />
+                                    <div className="flex gap-2">
+                                        <Select value={qType} onValueChange={(v: any) => setQType(v)}>
+                                            <SelectTrigger className="h-8 text-sm w-[120px]"><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="text">Short Text</SelectItem>
+                                                <SelectItem value="textarea">Paragraph</SelectItem>
+                                                <SelectItem value="radio">Radio Options</SelectItem>
+                                                <SelectItem value="checkbox">Checkbox</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        {(qType === 'radio' || qType === 'checkbox') && (
+                                            <Input value={qOptions} onChange={e => setQOptions(e.target.value)} placeholder="Options (comma sep)" className="h-8 text-sm flex-1" />
+                                        )}
+                                    </div>
+                                    <div className="flex items-center gap-4">
+                                         <div className="flex items-center space-x-2">
+                                            <input type="checkbox" id="req" className="rounded border-gray-300" checked={qRequired} onChange={e => setQRequired(e.target.checked)} />
+                                            <label htmlFor="req" className="text-sm">Mandatory</label>
+                                        </div>
+                                        {/* Simple Conditional Logic Toggle */}
+                                        {customQuestions.length > 0 && (
+                                            <div className="flex items-center gap-2">
+                                                <input type="checkbox" id="cond" className="rounded border-gray-300" checked={qConditional.enabled} onChange={e => setQConditional({...qConditional, enabled: e.target.checked})} />
+                                                <label htmlFor="cond" className="text-sm">Conditional</label>
+                                            </div>
+                                        )}
+                                    </div>
+                                    {qConditional.enabled && (
+                                        <div className="flex gap-2 mt-2">
+                                             <Select value={qConditional.dependsOn} onValueChange={v => setQConditional({...qConditional, dependsOn: v})}>
+                                                <SelectTrigger className="h-8 text-sm w-[120px]"><SelectValue placeholder="Depends On" /></SelectTrigger>
+                                                <SelectContent>
+                                                    {customQuestions.map((q, i) => (
+                                                        <SelectItem key={q.id} value={q.id}>Q#{i+1}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            <Input value={qConditional.value} onChange={e => setQConditional({...qConditional, value: e.target.value})} placeholder="Value match" className="h-8 text-sm" />
+                                        </div>
+                                    )}
+                                    <Button size="sm" variant="secondary" onClick={addQuestion} className="w-full mt-2">Add Question</Button>
+                                </div>
+
+                            </div>
+
                             <Button onClick={handleCreateMeeting} disabled={assignedClasses.length === 0}>Create Meeting</Button>
+                        </div>
+                    </DialogContent>
+                </Dialog>
+
+                <Dialog open={isCourseOpen} onOpenChange={setIsCourseOpen}>
+                    <DialogContent>
+                        <DialogHeader><DialogTitle>Add Subject Allocation</DialogTitle></DialogHeader>
+                        <div className="grid gap-4 py-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <Label>Academic Year</Label>
+                                    <Input value={courseData.academic_year} onChange={e => setCourseData({ ...courseData, academic_year: e.target.value })} />
+                                </div>
+                                <div>
+                                    <Label>Degree</Label>
+                                    <Input value={courseData.degree} onChange={e => setCourseData({ ...courseData, degree: e.target.value })} />
+                                </div>
+                            </div>
+                            <div>
+                                <Label>Subject Name</Label>
+                                <Input value={courseData.subject_name} onChange={e => setCourseData({ ...courseData, subject_name: e.target.value })} placeholder="e.g. Data Structures" />
+                            </div>
+                            <div>
+                                <Label>Subject Code (Optional)</Label>
+                                <Input value={courseData.subject_code} onChange={e => setCourseData({ ...courseData, subject_code: e.target.value })} placeholder="e.g. CS123" />
+                            </div>
+                            <div className="grid grid-cols-3 gap-4">
+                                <div>
+                                    <Label>Year (I-IV)</Label>
+                                    <Select value={courseData.year} onValueChange={v => setCourseData({ ...courseData, year: v })}>
+                                        <SelectTrigger><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="I">I</SelectItem>
+                                            <SelectItem value="II">II</SelectItem>
+                                            <SelectItem value="III">III</SelectItem>
+                                            <SelectItem value="IV">IV</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div>
+                                    <Label>Semester</Label>
+                                    <Select value={courseData.semester.toString()} onValueChange={v => setCourseData({ ...courseData, semester: parseInt(v) })}>
+                                        <SelectTrigger><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            {[1, 2, 3, 4, 5, 6, 7, 8].map(s => <SelectItem key={s} value={s.toString()}>{s}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div>
+                                    <Label>Section</Label>
+                                    <Select value={courseData.section} onValueChange={v => setCourseData({ ...courseData, section: v })}>
+                                        <SelectTrigger><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="A">A</SelectItem>
+                                            <SelectItem value="B">B</SelectItem>
+                                            <SelectItem value="C">C</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                            <Button onClick={handleAddCourse}>Add Course</Button>
                         </div>
                     </DialogContent>
                 </Dialog>

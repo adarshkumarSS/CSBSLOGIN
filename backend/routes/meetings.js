@@ -35,8 +35,10 @@ router.patch('/:id/close', verifyToken, requireRole(['faculty', 'hod']), meeting
 // Generate PDF
 router.post('/:id/generate-pdf', verifyToken, requireRole(['faculty', 'hod']), meetingController.generatePDF);
 
-// QUERY ROUTES (Inside meeting routes for structure, or separate)
-// Using nested route structure: /meetings/:id/query
+// Submit Response (Student only) - NEW
+router.post('/:id/submit', verifyToken, requireRole(['student']), meetingController.submitResponse);
+
+// QUERY ROUTES
 
 // Submit Query (Student)
 router.post(

@@ -12,6 +12,7 @@ const passwordResetRoutes = require('./routes/passwordReset');
 const meetingRoutes = require('./routes/meetings');
 const queryRoutes = require('./routes/queries');
 const allocationRoutes = require('./routes/allocation');
+const courseRoutes = require('./routes/courseRoutes'); // Added
 const path = require('path');
 
 const app = express();
@@ -46,6 +47,7 @@ app.use('/api/password-reset', passwordResetRoutes);
 app.use('/api/meetings', meetingRoutes);
 app.use('/api/queries', queryRoutes);
 app.use('/api/allocation', allocationRoutes);
+app.use('/api/courses', courseRoutes);
 
 // Static files (for reports)
 app.use('/public', express.static(path.join(__dirname, 'public')));

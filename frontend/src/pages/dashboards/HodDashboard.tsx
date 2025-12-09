@@ -36,6 +36,7 @@ const HodDashboard = () => {
   const [selectedTutor, setSelectedTutor] = useState<string>('');
   const [filters, setFilters] = useState({ year: 'III', semester: '5', section: 'A' });
   const [allocLoading, setAllocLoading] = useState(false);
+  const [lastSelectedIndex, setLastSelectedIndex] = useState<number | null>(null);
 
   const fetchMeetings = async () => {
     try {
@@ -63,6 +64,7 @@ const HodDashboard = () => {
           const res = await api.get(`/allocation/students?${params}`);
           setStudents(res.data.data);
           setSelectedStudents([]); // Reset selection on new fetch
+          setLastSelectedIndex(null);
       } catch (e) { toast.error('Failed to fetch students'); }
       finally { setAllocLoading(false); }
   };
@@ -82,8 +84,49 @@ const HodDashboard = () => {
   const toggleSelectAll = () => {
       if (selectedStudents.length === students.length) {
           setSelectedStudents([]);
+          setLastSelectedIndex(null);
       } else {
           setSelectedStudents(students.map(s => s._id));
+          setLastSelectedIndex(null);
+      }
+  };
+
+  const handleStudentSelect = (id: string, index: number, e: any) => {
+      // Cast e to native event to check shift key, React SyntheticEvent checking is similar
+      const isShift = (e.nativeEvent as MouseEvent).shiftKey || (e as any).shiftKey;
+      const isChecked = e.target.checked;
+
+      if (isShift && lastSelectedIndex !== null) {
+          const start = Math.min(lastSelectedIndex, index);
+          const end = Math.max(lastSelectedIndex, index);
+          
+          const newSelection = [...selectedStudents];
+          const rangeIds = students.slice(start, end + 1).map(s => s._id);
+
+          if (isChecked) {
+              // Add range to selection
+              rangeIds.forEach(rid => {
+                  if (!newSelection.includes(rid)) newSelection.push(rid);
+              });
+          } else {
+              // Remove range from selection (optional, but good UX if checking sets false)
+               // However, standard shift-click usually extends the "active" state. 
+               // If checking a box, we add. If unchecking, we remove?
+               // Let's assume user wants to SELECT fast. 
+               rangeIds.forEach(rid => {
+                   const idx = newSelection.indexOf(rid);
+                   if (idx > -1) newSelection.splice(idx, 1);
+               });
+          }
+          setSelectedStudents(newSelection);
+      } else {
+          // Normal Click
+          if (isChecked) {
+              setSelectedStudents([...selectedStudents, id]);
+          } else {
+              setSelectedStudents(selectedStudents.filter(sid => sid !== id));
+          }
+          setLastSelectedIndex(index);
       }
   };
 
@@ -204,12 +247,13 @@ const HodDashboard = () => {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y">
-                                        {students.map(s => (
+                                        {students.map((s, index) => (
                                             <tr key={s._id}>
-                                                <td className="px-4 py-2"><input type="checkbox" checked={selectedStudents.includes(s._id)} onChange={(e) => {
-                                                    if (e.target.checked) setSelectedStudents([...selectedStudents, s._id]);
-                                                    else setSelectedStudents(selectedStudents.filter(id => id !== s._id));
-                                                }} /></td>
+                                                <td className="px-4 py-2"><input type="checkbox" checked={selectedStudents.includes(s._id)} 
+                                                    onChange={(e) => handleStudentSelect(s._id, index, e)} 
+                                                    // Also add onClick to ensure we catch modifier keys reliably if onChange misses them (React onChange sometimes behaves oddly with modifiers)
+                                                    // Actually React onChange event typically includes shiftKey properties.
+                                                /></td>
                                                 <td className="px-4 py-2">{s.roll_number}</td>
                                                 <td className="px-4 py-2">{s.name}</td>
                                                 <td className="px-4 py-2 text-muted-foreground">{s.tutor_id?.name || '-'}</td>

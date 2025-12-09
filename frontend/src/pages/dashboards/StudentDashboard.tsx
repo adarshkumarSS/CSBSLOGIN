@@ -18,6 +18,17 @@ interface Meeting {
   type: string;
   status: 'DRAFT' | 'OPEN' | 'CLOSED' | 'COMPLETED';
   tutor_id: { name: string };
+  custom_questions?: CustomQuestion[];
+  response_submitted?: boolean;
+}
+
+interface CustomQuestion {
+    id: string;
+    type: 'text' | 'textarea' | 'radio' | 'checkbox';
+    question: string;
+    options: string[];
+    required: boolean;
+    conditional: { enabled: boolean; dependsOn?: string; value?: string };
 }
 
 interface Query {
@@ -42,6 +53,50 @@ const StudentDashboard = () => {
   const [typeFilter, setTypeFilter] = useState('ALL');
   const [loading, setLoading] = useState(true);
   const [editingQueryId, setEditingQueryId] = useState<string | null>(null);
+
+  // Meeting Form State
+  const [meetingAnswers, setMeetingAnswers] = useState<{questionId: string, answer: any}[]>([]);
+
+  const handleAnswerChange = (qId: string, val: any) => {
+    const existing = meetingAnswers.find(a => a.questionId === qId);
+    if (existing) {
+        setMeetingAnswers(meetingAnswers.map(a => a.questionId === qId ? { ...a, answer: val } : a));
+    } else {
+        setMeetingAnswers([...meetingAnswers, { questionId: qId, answer: val }]);
+    }
+  };
+
+  const handleSubmitResponse = async () => {
+    if (!activeMeeting) return;
+    // Validate required questions logic (frontend side)
+    const questions = activeMeeting.custom_questions || [];
+    for (const q of questions) {
+        if (q.required) {
+            // Check conditional
+            if (q.conditional.enabled) {
+                const parentAns = meetingAnswers.find(a => a.questionId === q.conditional.dependsOn)?.answer;
+                if (parentAns !== q.conditional.value) continue; // Skip if condition not met
+            }
+            const ans = meetingAnswers.find(a => a.questionId === q.id)?.answer;
+            if (!ans) {
+                toast.error(`Please answer: ${q.question}`);
+                return;
+            }
+        }
+    }
+
+    try {
+        await api.post(`/meetings/${activeMeeting._id}/submit`, { answers: meetingAnswers });
+        toast.success("Meeting form submitted successfully!");
+        setMeetingAnswers([]);
+        // Update local state to hide form
+        setActiveMeeting({ ...activeMeeting, response_submitted: true });
+        // Also update in list
+        setOpenMeetings(openMeetings.map(m => m._id === activeMeeting._id ? { ...m, response_submitted: true } : m));
+    } catch (error: any) {
+        toast.error(error.response?.data?.message || "Failed to submit form");
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -229,6 +284,69 @@ const StudentDashboard = () => {
               )}
             </CardContent>
           </Card>
+
+          {/* Meeting Form Card (if custom questions exist AND not submitted) */}
+          {activeMeeting && (activeMeeting.custom_questions || []).length > 0 && !activeMeeting.response_submitted && (
+            <Card className="border-l-4 border-l-purple-500 shadow-md">
+                <CardHeader>
+                    <CardTitle>Mandatory Meeting Form</CardTitle>
+                    <CardDescription>Please answer the following questions required by your tutor.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    {(activeMeeting.custom_questions || []).map((q, idx) => {
+                         // Check visibility
+                         if (q.conditional.enabled) {
+                             const parentAns = meetingAnswers.find(a => a.questionId === q.conditional.dependsOn)?.answer;
+                             if (parentAns !== q.conditional.value) return null;
+                         }
+
+                         return (
+                            <div key={q.id} className="space-y-2">
+                                <Label>{q.question} {q.required && <span className="text-red-500">*</span>}</Label>
+                                {q.type === 'text' && <Input value={meetingAnswers.find(a=>a.questionId===q.id)?.answer || ''} onChange={e => handleAnswerChange(q.id, e.target.value)} />}
+                                {q.type === 'textarea' && <Textarea value={meetingAnswers.find(a=>a.questionId===q.id)?.answer || ''} onChange={e => handleAnswerChange(q.id, e.target.value)} />}
+                                {q.type === 'radio' && (
+                                    <div className="flex gap-4">
+                                        {q.options.map(opt => (
+                                            <div key={opt} className="flex items-center space-x-2">
+                                                <input type="radio" name={q.id} id={`${q.id}-${opt}`} value={opt} 
+                                                    checked={meetingAnswers.find(a=>a.questionId===q.id)?.answer === opt}
+                                                    onChange={e => handleAnswerChange(q.id, e.target.value)}
+                                                />
+                                                <label htmlFor={`${q.id}-${opt}`}>{opt}</label>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                                {q.type === 'checkbox' && (
+                                     <div className="flex gap-4">
+                                        {q.options.map(opt => (
+                                            <div key={opt} className="flex items-center space-x-2">
+                                                <input type="checkbox" id={`${q.id}-${opt}`} value={opt}
+                                                     // complex logic for multi-select, simplifying to single select for now or simple string array
+                                                     // Assuming simple string array in backend.
+                                                     // For simplicity in this iteration, treating checkbox like radio or just single select if array logic is too complex for this snippet.
+                                                     // Actually, let's implement array logic
+                                                     onChange={e => {
+                                                         const current = (meetingAnswers.find(a=>a.questionId===q.id)?.answer || []) as string[];
+                                                         const newVal = e.target.checked ? [...current, opt] : current.filter(x => x !== opt);
+                                                         handleAnswerChange(q.id, newVal);
+                                                     }}
+                                                     checked={((meetingAnswers.find(a=>a.questionId===q.id)?.answer || []) as string[]).includes(opt)}
+                                                />
+                                                <label htmlFor={`${q.id}-${opt}`}>{opt}</label>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                         );
+                    })}
+                    <Button onClick={handleSubmitResponse} className="w-full bg-purple-600 hover:bg-purple-700">Submit Form</Button>
+                </CardContent>
+            </Card>
+          )}
+
         </div>
 
         {/* Right Column: History */}

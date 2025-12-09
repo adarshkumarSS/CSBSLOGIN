@@ -1,5 +1,6 @@
 const Meeting = require('../models/Meeting');
 const Query = require('../models/Query');
+const MeetingResponse = require('../models/MeetingResponse');
 const Student = require('../models/Student');
 const Faculty = require('../models/Faculty');
 const puppeteer = require('puppeteer');
@@ -16,7 +17,7 @@ const meetingController = {
   // Create Meeting (Tutor only)
   async createMeeting(req, res) {
     try {
-      const { month, year, type, degree, semester, section } = req.body;
+      const { month, year, type, degree, semester, section, custom_questions } = req.body;
       const tutorId = req.user._id || req.user.id;
 
       // Validate Tutor Role
@@ -55,7 +56,8 @@ const meetingController = {
         degree,
         semester,
         section,
-        department: faculty.department
+        department: faculty.department,
+        custom_questions: custom_questions || []
       });
 
       res.status(201).json({
@@ -66,6 +68,64 @@ const meetingController = {
 
     } catch (error) {
       console.error('Create meeting error:', error);
+      res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+  },
+
+  // Submit Meeting Response (Student)
+  async submitResponse(req, res) {
+    try {
+      const { id } = req.params;
+      const { answers } = req.body;
+      const studentId = req.user._id || req.user.id;
+
+      const meeting = await Meeting.findById(id);
+      if (!meeting) return res.status(404).json({ success: false, message: 'Meeting not found' });
+
+      // Check if already submitted
+      const existing = await MeetingResponse.findOne({ meeting_id: id, student_id: studentId });
+      if (existing) {
+        return res.status(400).json({ success: false, message: 'Response already submitted' });
+      }
+
+      // Validate answers against mandatory questions
+      const questions = meeting.custom_questions || [];
+      for (const q of questions) {
+        if (q.required && !q.conditional?.enabled) {
+          const ans = answers.find(a => a.questionId === q.id);
+          if (!ans || !ans.answer) {
+            return res.status(400).json({ 
+              success: false, 
+              message: `Missing answer for required question: "${q.question}"` 
+            });
+          }
+        }
+        // Basic conditional validation (if dependent question has specific value)
+        if (q.conditional?.enabled) {
+            const parentAns = answers.find(a => a.questionId === q.conditional.dependsOn);
+            if (parentAns && parentAns.answer === q.conditional.value) {
+                // Now this question is required
+                const ans = answers.find(a => a.questionId === q.id);
+                if (q.required && (!ans || !ans.answer)) {
+                     return res.status(400).json({ 
+                        success: false, 
+                        message: `Missing answer for required question: "${q.question}"` 
+                      });
+                }
+            }
+        }
+      }
+
+      const response = await MeetingResponse.create({
+        meeting_id: id,
+        student_id: studentId,
+        answers
+      });
+
+      res.status(201).json({ success: true, message: 'Response submitted', data: response });
+
+    } catch (error) {
+      console.error('Submit response error:', error);
       res.status(500).json({ success: false, message: 'Internal server error' });
     }
   },
@@ -265,6 +325,22 @@ const meetingController = {
       // Assuming HOD can see all.
 
       const meetings = await Meeting.find(filter).sort({ created_at: -1 }).populate('tutor_id', 'name');
+      
+      // If student, check for submitted responses
+      if (role === 'student') {
+        const responses = await MeetingResponse.find({ 
+            student_id: id, 
+            meeting_id: { $in: meetings.map(m => m._id) } 
+        });
+        const submittedSet = new Set(responses.map(r => r.meeting_id.toString()));
+        
+        const meetingsWithStatus = meetings.map(m => ({
+            ...m.toObject(),
+            response_submitted: submittedSet.has(m._id.toString())
+        }));
+        return res.json({ success: true, data: meetingsWithStatus });
+      }
+
       res.json({ success: true, data: meetings });
     } catch (error) {
       res.status(500).json({ success: false, message: 'Error fetching meetings' });
