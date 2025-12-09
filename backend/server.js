@@ -48,6 +48,8 @@ app.use('/api/meetings', meetingRoutes);
 app.use('/api/queries', queryRoutes);
 app.use('/api/allocation', allocationRoutes);
 app.use('/api/courses', courseRoutes);
+app.use('/api/options', require('./routes/subjectRoutes')); // CCM Subjects
+app.use('/api/complaints', require('./routes/complaintRoutes')); // CCM Complaints
 
 // Static files (for reports)
 app.use('/public', express.static(path.join(__dirname, 'public')));

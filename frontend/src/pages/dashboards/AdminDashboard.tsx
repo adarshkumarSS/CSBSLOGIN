@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { FileText, Download } from 'lucide-react';
 
 import { UserManagementContent } from '../UserManagement';
+import CCMAdminTab from '@/components/ccm/admin/CCMAdminTab';
 
 interface Meeting {
   _id: string;
@@ -29,7 +30,7 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
 
   // Allocation State
-  const [view, setView] = useState<'MEETINGS' | 'ALLOCATION' | 'USERS'>('MEETINGS');
+  const [view, setView] = useState<'MEETINGS' | 'ALLOCATION' | 'USERS' | 'CCM'>('MEETINGS');
   const [students, setStudents] = useState<any[]>([]);
   const [faculties, setFaculties] = useState<any[]>([]);
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
@@ -147,9 +148,12 @@ const AdminDashboard = () => {
             <button className={`pb-2 font-medium ${view === 'MEETINGS' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground'}`} onClick={() => setView('MEETINGS')}>Meetings</button>
             <button className={`pb-2 font-medium ${view === 'USERS' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground'}`} onClick={() => setView('USERS')}>User Management</button>
             <button className={`pb-2 font-medium ${view === 'ALLOCATION' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground'}`} onClick={() => setView('ALLOCATION')}>Allocation</button>
+             <button className={`pb-2 font-medium ${view === 'CCM' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground'}`} onClick={() => setView('CCM')}>Class Committee</button>
         </div>
 
-        {view === 'MEETINGS' ? (
+        {view === 'CCM' ? (
+            <CCMAdminTab />
+        ) : view === 'MEETINGS' ? (
         <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
             <div className="p-4 border-b flex justify-between items-center">
                 <h3 className="font-semibold">Department Meetings & Reports</h3>

@@ -16,6 +16,7 @@ import CreateMeetingDialog from '@/components/meetings/CreateMeetingDialog';
 import CourseList from '@/components/faculty/CourseList';
 import RecentActivity from '@/components/faculty/RecentActivity';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import CCMFacultyTab from '@/components/ccm/faculty/CCMFacultyTab';
 
 interface Meeting {
     _id: string;
@@ -300,6 +301,7 @@ const FacultyDashboard = () => {
                 <TabsList>
                     <TabsTrigger value="courses">My Subjects</TabsTrigger>
                     {isTutor && <TabsTrigger value="mentorship">Mentorship Dashboard</TabsTrigger>}
+                    <TabsTrigger value="ccm">Class Committee</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="courses" className="space-y-6">
@@ -448,6 +450,10 @@ const FacultyDashboard = () => {
                     </TabsContent>
                 )}
             </Tabs>
+
+            <TabsContent value="ccm">
+                <CCMFacultyTab />
+            </TabsContent>
 
                 {/* Dialogs */}
                 <CreateMeetingDialog 

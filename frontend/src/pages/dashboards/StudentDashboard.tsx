@@ -13,6 +13,8 @@ import { Send, Clock, CheckCircle, XCircle, Search, Calendar, User } from 'lucid
 import MeetingResponseForm from '@/components/student/MeetingResponseForm';
 import QuerySubmissionForm from '@/components/student/QuerySubmissionForm';
 import QueryHistoryList from '@/components/student/QueryHistoryList';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import CCMStudentTab from '@/components/ccm/student/CCMStudentTab';
 
 interface Meeting {
   _id: string;
@@ -189,134 +191,146 @@ const StudentDashboard = () => {
 
   return (
     <DashboardLayout title={title} subtitle={subtitle} showBackToHod={true}>
-      <div className="space-y-8">
-        {/* Stats Cards */}
-        {/* Compact Stats Row */}
-        <div className="flex flex-wrap gap-3 items-center justify-between bg-card p-3 rounded-lg border shadow-sm">
-            <div className="flex gap-4">
-                <div className="flex items-center gap-2">
-                    <div className="bg-primary/10 p-1.5 rounded-full">
-                        <Search className="h-4 w-4 text-primary" />
+      <Tabs defaultValue="mentoring">
+        <TabsList className="mb-4">
+          <TabsTrigger value="mentoring">Mentoring</TabsTrigger>
+          <TabsTrigger value="ccm">Class Committee</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="mentoring" className="space-y-8">
+            {/* Stats Cards */}
+            {/* Compact Stats Row */}
+            <div className="flex flex-wrap gap-3 items-center justify-between bg-card p-3 rounded-lg border shadow-sm">
+                <div className="flex gap-4">
+                    <div className="flex items-center gap-2">
+                        <div className="bg-primary/10 p-1.5 rounded-full">
+                            <Search className="h-4 w-4 text-primary" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">My Queries</p>
+                            <p className="text-sm font-bold leading-none">{historyQueries.length}</p>
+                        </div>
                     </div>
-                    <div>
-                        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">My Queries</p>
-                        <p className="text-sm font-bold leading-none">{historyQueries.length}</p>
+                    <div className="w-px bg-border h-8 self-center mx-1"></div>
+                    <div className="flex items-center gap-2">
+                        <div className="bg-yellow-100 p-1.5 rounded-full">
+                            <Clock className="h-4 w-4 text-yellow-600" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Pending</p>
+                            <p className="text-sm font-bold leading-none text-yellow-700">{historyQueries.filter(q => q.status === 'PENDING').length}</p>
+                        </div>
+                    </div>
+                    <div className="w-px bg-border h-8 self-center mx-1"></div>
+                    <div className="flex items-center gap-2">
+                        <div className="bg-green-100 p-1.5 rounded-full">
+                            <CheckCircle className="h-4 w-4 text-green-600" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Resolved</p>
+                            <p className="text-sm font-bold leading-none text-green-700">{historyQueries.filter(q => q.status === 'APPROVED' || q.status === 'REJECTED').length}</p>
+                        </div>
+                    </div>
+                    <div className="w-px bg-border h-8 self-center mx-1"></div>
+                    <div className="flex items-center gap-2">
+                        <div className="bg-purple-100 p-1.5 rounded-full">
+                            <Calendar className="h-4 w-4 text-purple-600" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Open Mtgs</p>
+                            <p className="text-sm font-bold leading-none text-purple-700">{openMeetings.length}</p>
+                        </div>
                     </div>
                 </div>
-                <div className="w-px bg-border h-8 self-center mx-1"></div>
-                <div className="flex items-center gap-2">
-                    <div className="bg-yellow-100 p-1.5 rounded-full">
-                        <Clock className="h-4 w-4 text-yellow-600" />
-                    </div>
-                    <div>
-                        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Pending</p>
-                        <p className="text-sm font-bold leading-none text-yellow-700">{historyQueries.filter(q => q.status === 'PENDING').length}</p>
-                    </div>
-                </div>
-                <div className="w-px bg-border h-8 self-center mx-1"></div>
-                <div className="flex items-center gap-2">
-                    <div className="bg-green-100 p-1.5 rounded-full">
-                        <CheckCircle className="h-4 w-4 text-green-600" />
-                    </div>
-                    <div>
-                        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Resolved</p>
-                        <p className="text-sm font-bold leading-none text-green-700">{historyQueries.filter(q => q.status === 'APPROVED' || q.status === 'REJECTED').length}</p>
-                    </div>
-                </div>
-                <div className="w-px bg-border h-8 self-center mx-1"></div>
-                <div className="flex items-center gap-2">
-                    <div className="bg-purple-100 p-1.5 rounded-full">
-                        <Calendar className="h-4 w-4 text-purple-600" />
-                    </div>
-                    <div>
-                        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Open Mtgs</p>
-                        <p className="text-sm font-bold leading-none text-purple-700">{openMeetings.length}</p>
-                    </div>
-                </div>
-            </div>
-            
-        </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-
-        {/* Left Column: Actions */}
-        <div className="lg:col-span-1 space-y-6">
-          <QuerySubmissionForm 
-            openMeetings={openMeetings}
-            activeMeeting={activeMeeting}
-            editingQueryId={editingQueryId}
-            subject={subject}
-            concern={concern}
-            onMeetingChange={(id) => { const m = openMeetings.find(x => x._id === id); if (m) setActiveMeeting(m); }}
-            onSubjectChange={setSubject}
-            onConcernChange={setConcern}
-            onSubmit={handleSubmitQuery}
-            onCancelEdit={cancelEdit}
-          />
-
-          {/* Meeting Form Card (if custom questions exist AND not submitted) */}
-          {activeMeeting && (activeMeeting.custom_questions || []).length > 0 && !activeMeeting.response_submitted && (
-            <MeetingResponseForm
-                questions={activeMeeting.custom_questions || []}
-                answers={meetingAnswers}
-                onAnswerChange={handleAnswerChange}
-                onSubmit={handleSubmitResponse}
-            />
-          )}
-
-        </div>
-
-        {/* Right Column: History */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center bg-card p-4 rounded-lg border shadow-sm">
-            <div>
-              <h2 className="text-2xl font-bold tracking-tight">Query History</h2>
-              <p className="text-muted-foreground text-sm">View and track status of your past queries.</p>
+                
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-              {/* Filters */}
-              <select
-                className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                value={statusFilter}
-                onChange={e => setStatusFilter(e.target.value)}
-              >
-                <option value="ALL">All Status</option>
-                <option value="PENDING">Pending</option>
-                <option value="APPROVED">Approved</option>
-                <option value="REJECTED">Rejected</option>
-              </select>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
-              <select
-                className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                value={typeFilter}
-                onChange={e => setTypeFilter(e.target.value)}
-              >
-                <option value="ALL">All Types</option>
-                <option value="MONTHLY">Monthly</option>
-                <option value="END_SEM">End Sem</option>
-              </select>
-
-              <div className="relative w-full sm:w-48">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search..."
-                  className="pl-8 h-9"
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
+                {/* Left Column: Actions */}
+                <div className="lg:col-span-1 space-y-6">
+                <QuerySubmissionForm 
+                    openMeetings={openMeetings}
+                    activeMeeting={activeMeeting}
+                    editingQueryId={editingQueryId}
+                    subject={subject}
+                    concern={concern}
+                    onMeetingChange={(id) => { const m = openMeetings.find(x => x._id === id); if (m) setActiveMeeting(m); }}
+                    onSubjectChange={setSubject}
+                    onConcernChange={setConcern}
+                    onSubmit={handleSubmitQuery}
+                    onCancelEdit={cancelEdit}
                 />
-              </div>
-            </div>
-          </div>
 
-          <QueryHistoryList 
-            queries={filteredQueries}
-            searchTerm={searchTerm}
-            onEdit={handleEditQuery}
-          />
-        </div>
-      </div>
-      </div>
+                {/* Meeting Form Card (if custom questions exist AND not submitted) */}
+                {activeMeeting && (activeMeeting.custom_questions || []).length > 0 && !activeMeeting.response_submitted && (
+                    <MeetingResponseForm
+                        questions={activeMeeting.custom_questions || []}
+                        answers={meetingAnswers}
+                        onAnswerChange={handleAnswerChange}
+                        onSubmit={handleSubmitResponse}
+                    />
+                )}
+
+                </div>
+
+                {/* Right Column: History */}
+                <div className="lg:col-span-2 space-y-6">
+                <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center bg-card p-4 rounded-lg border shadow-sm">
+                    <div>
+                    <h2 className="text-2xl font-bold tracking-tight">Query History</h2>
+                    <p className="text-muted-foreground text-sm">View and track status of your past queries.</p>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                    {/* Filters */}
+                    <select
+                        className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        value={statusFilter}
+                        onChange={e => setStatusFilter(e.target.value)}
+                    >
+                        <option value="ALL">All Status</option>
+                        <option value="PENDING">Pending</option>
+                        <option value="APPROVED">Approved</option>
+                        <option value="REJECTED">Rejected</option>
+                    </select>
+
+                    <select
+                        className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        value={typeFilter}
+                        onChange={e => setTypeFilter(e.target.value)}
+                    >
+                        <option value="ALL">All Types</option>
+                        <option value="MONTHLY">Monthly</option>
+                        <option value="END_SEM">End Sem</option>
+                    </select>
+
+                    <div className="relative w-full sm:w-48">
+                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                        placeholder="Search..."
+                        className="pl-8 h-9"
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                        />
+                    </div>
+                    </div>
+                </div>
+
+                <QueryHistoryList 
+                    queries={filteredQueries}
+                    searchTerm={searchTerm}
+                    onEdit={handleEditQuery}
+                />
+                </div>
+            </div>
+        </TabsContent>
+        
+        <TabsContent value="ccm">
+            {/* Lazy load CCM Tab implicitly by conditionally rendering if performance needed, but Tabs handles it well */}
+            <CCMStudentTab />
+        </TabsContent>
+      </Tabs>
     </DashboardLayout>
   );
 };
