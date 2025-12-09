@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 
-export type UserRole = 'student' | 'faculty' | 'hod';
+export type UserRole = 'student' | 'faculty' | 'hod' | 'admin';
 
 interface User {
   id: string;
@@ -42,7 +42,7 @@ interface AuthProviderProps {
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(!!localStorage.getItem('authToken'));
   const [userYear, setUserYearState] = useState<string>('');
   const [loginError, setLoginError] = useState<string | null>(null);
 
@@ -52,6 +52,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (token) {
       // Verify token with backend and set user
       verifyToken(token);
+    } else {
+      setIsLoading(false);
     }
   }, []);
 
@@ -73,6 +75,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     } catch (error) {
       localStorage.removeItem('authToken');
+    } finally {
+      setIsLoading(false);
     }
   };
 

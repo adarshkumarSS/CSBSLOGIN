@@ -449,11 +449,11 @@ const FacultyDashboard = () => {
                         </div>
                     </TabsContent>
                 )}
-            </Tabs>
 
-            <TabsContent value="ccm">
-                <CCMFacultyTab />
-            </TabsContent>
+                <TabsContent value="ccm">
+                    <CCMFacultyTab />
+                </TabsContent>
+            </Tabs>
 
                 {/* Dialogs */}
                 <CreateMeetingDialog 

@@ -34,7 +34,15 @@ const ProtectedRoute = ({ children, allowedRole }: { children: React.ReactNode; 
 };
 
 const AppRoutes = () => {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
+  
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
   
   const getDashboardPath = (role: string) => {
     if (role === 'hod' || role === 'admin') return '/admin/dashboard';
