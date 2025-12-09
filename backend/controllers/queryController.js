@@ -12,7 +12,7 @@ const queryController = {
       const studentId = req.user._id || req.user.id;
 
       if (!subject) {
-          return res.status(400).json({ success: false, message: 'Subject is required' });
+        return res.status(400).json({ success: false, message: 'Subject is required' });
       }
 
       // 1. Check if meeting exists and is OPEN
@@ -22,8 +22,8 @@ const queryController = {
       }
 
       if (meeting.status !== 'OPEN') {
-        return res.status(403).json({ 
-          success: false, 
+        return res.status(403).json({
+          success: false,
           message: 'Query window is not open for this meeting',
           errorType: 'window_closed'
         });
@@ -31,15 +31,15 @@ const queryController = {
 
       const student = await Student.findById(studentId);
       if (!student) {
-          return res.status(404).json({ success: false, message: 'Student profile not found' });
+        return res.status(404).json({ success: false, message: 'Student profile not found' });
       }
 
       if (!student.tutor_id || student.tutor_id.toString() !== meeting.tutor_id.toString()) {
-         return res.status(403).json({
-           success: false,
-           message: 'You are not assigned to the tutor conducting this meeting',
-           errorType: 'tutor_mismatch'
-         });
+        return res.status(403).json({
+          success: false,
+          message: 'You are not assigned to the tutor conducting this meeting',
+          errorType: 'tutor_mismatch'
+        });
       }
 
       // REMOVED: Check for duplicate query (User allows multiple queries)
@@ -67,37 +67,44 @@ const queryController = {
 
   // Update a query (Student only)
   async updateQuery(req, res) {
-      try {
-          const { id } = req.params;
-          const { subject, concern } = req.body;
-          const studentId = req.user._id || req.user.id;
+    try {
+      const { id } = req.params;
+      const { subject, concern } = req.body;
+      const studentId = req.user._id || req.user.id;
 
-          const query = await Query.findById(id).populate('meeting_id');
-          if (!query) {
-              return res.status(404).json({ success: false, message: 'Query not found' });
-          }
-
-          if (query.student_id.toString() !== studentId.toString()) {
-              return res.status(403).json({ success: false, message: 'Not authorized' });
-          }
-
-          if (query.status !== 'PENDING') {
-              return res.status(400).json({ success: false, message: 'Query is locked' });
-          }
-
-          if (query.meeting_id.status !== 'OPEN') {
-              return res.status(400).json({ success: false, message: 'Meeting window closed' });
-          }
-
-          if (subject) query.subject = subject;
-          if (concern) query.concern = concern;
-          await query.save();
-
-          res.json({ success: true, data: query });
-      } catch (error) {
-          console.error(error);
-          res.status(500).json({ success: false, message: 'Server error' });
+      const query = await Query.findById(id).populate('meeting_id');
+      if (!query) {
+        return res.status(404).json({ success: false, message: 'Query not found' });
       }
+
+      if (query.student_id.toString() !== studentId.toString()) {
+        return res.status(403).json({ success: false, message: 'Not authorized' });
+      }
+
+      if (query.status !== 'PENDING' && query.status !== 'REJECTED') {
+        return res.status(400).json({ success: false, message: 'Query is locked' });
+      }
+
+      if (query.meeting_id.status !== 'OPEN') {
+        return res.status(400).json({ success: false, message: 'Meeting window closed' });
+      }
+
+      if (subject) query.subject = subject;
+      if (concern) query.concern = concern;
+
+      // Reset status to PENDING if it was REJECTED
+      query.status = 'PENDING';
+      // Clear previous remark if any, or keep it history? Usually clear or move to history. 
+      // For now, let's keep the old remark but status is pending, so it shows up for review again.
+      // Optionally could clear: query.tutor_remark = undefined; 
+
+      await query.save();
+
+      res.json({ success: true, data: query });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ success: false, message: 'Server error' });
+    }
   },
 
   // Review a query (Tutor only)
@@ -111,9 +118,9 @@ const queryController = {
         return res.status(400).json({ success: false, message: 'Invalid status' });
       }
       if (!tutor_remark && status === 'APPROVED') {
-         // Requirement specifically says "Cannot mark without remark" (assumed for both, but definitely for actions)
-         // Actually prompt said "Tutor forgets remark but approves -> Block"
-         return res.status(400).json({ success: false, message: 'Remark is required' });
+        // Requirement specifically says "Cannot mark without remark" (assumed for both, but definitely for actions)
+        // Actually prompt said "Tutor forgets remark but approves -> Block"
+        return res.status(400).json({ success: false, message: 'Remark is required' });
       }
 
       const query = await Query.findById(id).populate('meeting_id');
@@ -128,8 +135,8 @@ const queryController = {
 
       // Check if meeting is COMPLETED
       if (query.meeting_id.status === 'COMPLETED') {
-        return res.status(400).json({ 
-          success: false, 
+        return res.status(400).json({
+          success: false,
           message: 'Cannot review queries for a completed meeting',
           errorType: 'meeting_completed'
         });
@@ -154,55 +161,77 @@ const queryController = {
   // Get queries for tutor (Logs)
   async getTutorQueries(req, res) {
     try {
-        const tutorId = req.user._id || req.user.id;
-        const { status, search, meeting_status } = req.query;
+      const tutorId = req.user._id || req.user.id;
+      const { status, search, meeting_status } = req.query;
 
-        // 1. Find all meetings by this tutor
-        // If meeting_status is provided (e.g. 'COMPLETED'), filter meetings
-        const meetingQuery = { tutor_id: tutorId };
-        if (meeting_status) {
-            meetingQuery.status = meeting_status;
-        }
-        const meetings = await Meeting.find(meetingQuery).select('_id');
-        const meetingIds = meetings.map(m => m._id);
+      // 1. Find all meetings by this tutor
+      // If meeting_status is provided (e.g. 'COMPLETED'), filter meetings
+      const meetingQuery = { tutor_id: tutorId };
+      if (meeting_status) {
+        meetingQuery.status = meeting_status;
+      }
+      const meetings = await Meeting.find(meetingQuery).select('_id');
+      const meetingIds = meetings.map(m => m._id);
 
-        // 2. Find queries for these meetings
-        let queryFilter = { meeting_id: { $in: meetingIds } };
-        
-        if (status) {
-            queryFilter.status = status;
-        }
+      // 2. Find queries for these meetings
+      let queryFilter = { meeting_id: { $in: meetingIds } };
 
-        // Search by student name or roll number (requires lookup or reliable population)
-        // Since we populate student_id, search is easier after fetch or using aggregate.
-        // For simplicity with mongoose find + populate:
-        
-        let queries = await Query.find(queryFilter)
-            .populate('student_id', 'name roll_number')
-            .populate({
-                path: 'meeting_id',
-                select: 'month year degree semester section status' // meeting details
-            })
-            .sort({ created_at: -1 });
+      if (status) {
+        queryFilter.status = status;
+      }
 
-        // If search is provided, filter in memory (efficient enough for most tutor workloads)
-        if (search) {
-            const lowerSearch = search.toLowerCase();
-            queries = queries.filter(q => 
-                (q.student_id?.name?.toLowerCase().includes(lowerSearch)) ||
-                (q.student_id?.roll_number?.toLowerCase().includes(lowerSearch)) ||
-                (q.concern?.toLowerCase().includes(lowerSearch))
-            );
-        }
+      // Search by student name or roll number (requires lookup or reliable population)
+      // Since we populate student_id, search is easier after fetch or using aggregate.
+      // For simplicity with mongoose find + populate:
 
-        res.json({
-            success: true,
-            data: queries
-        });
+      let queries = await Query.find(queryFilter)
+        .populate('student_id', 'name roll_number')
+        .populate({
+          path: 'meeting_id',
+          select: 'month year degree semester section status' // meeting details
+        })
+        .sort({ created_at: -1 });
+
+      // If search is provided, filter in memory (efficient enough for most tutor workloads)
+      if (search) {
+        const lowerSearch = search.toLowerCase();
+        queries = queries.filter(q =>
+          (q.student_id?.name?.toLowerCase().includes(lowerSearch)) ||
+          (q.student_id?.roll_number?.toLowerCase().includes(lowerSearch)) ||
+          (q.concern?.toLowerCase().includes(lowerSearch))
+        );
+      }
+
+      res.json({
+        success: true,
+        data: queries
+      });
 
     } catch (error) {
-        console.error('Get tutor queries error:', error);
-        res.status(500).json({ success: false, message: 'Server error' });
+      console.error('Get tutor queries error:', error);
+      res.status(500).json({ success: false, message: 'Server error' });
+    }
+  },
+
+  // Get student history
+  async getStudentQueryHistory(req, res) {
+    try {
+      const studentId = req.user._id || req.user.id;
+      const queries = await Query.find({ student_id: studentId })
+        .populate({
+          path: 'meeting_id',
+          select: 'month year type status tutor_id',
+          populate: { path: 'tutor_id', select: 'name' }
+        })
+        .sort({ created_at: -1 });
+
+      res.json({
+        success: true,
+        data: queries
+      });
+    } catch (error) {
+      console.error('Get student history error:', error);
+      res.status(500).json({ success: false, message: 'Server error' });
     }
   }
 };

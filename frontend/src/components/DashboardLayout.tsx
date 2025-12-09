@@ -23,8 +23,8 @@ const DashboardLayout = ({
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
-      <div className="container mx-auto px-4 py-6">
-        <div className="max-w-4xl mx-auto">
+      <div className="container mx-auto px-4 py-6 md:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
           <div className="mb-8">
             {showBackToHod && user?.role === 'hod' && (
               <div className="mb-4">

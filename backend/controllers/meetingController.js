@@ -21,9 +21,10 @@ const meetingController = {
 
       // Validate Tutor Role
       if (req.user.role !== 'faculty' && req.user.role !== 'hod') {
-         return res.status(403).json({ success: false, message: 'Only tutors can create meetings' });
+        return res.status(403).json({ success: false, message: 'Only tutors can create meetings' });
       }
 
+      /* REMOVED: Check for duplicate meeting to allow multiple meetings per month
       // Check if tutor already created same month/year meeting
       const existing = await Meeting.findOne({
         tutor_id: tutorId,
@@ -38,11 +39,12 @@ const meetingController = {
           errorType: 'duplicate_meeting'
         });
       }
+      */
 
       const faculty = await Faculty.findById(tutorId);
 
       if (!faculty) {
-           return res.status(404).json({ success: false, message: 'Faculty profile not found' });
+        return res.status(404).json({ success: false, message: 'Faculty profile not found' });
       }
 
       const meeting = await Meeting.create({
@@ -75,16 +77,16 @@ const meetingController = {
       const meeting = await Meeting.findById(id);
 
       if (!meeting) return res.status(404).json({ success: false, message: 'Meeting not found' });
-      
+
       if (meeting.tutor_id.toString() !== req.user._id.toString()) {
-          return res.status(403).json({ success: false, message: 'Not authorized' });
+        return res.status(403).json({ success: false, message: 'Not authorized' });
       }
 
       if (meeting.status === 'OPEN') {
-          return res.status(400).json({ success: false, message: 'Window already open' });
+        return res.status(400).json({ success: false, message: 'Window already open' });
       }
       if (meeting.status === 'COMPLETED') {
-          return res.status(400).json({ success: false, message: 'Meeting already completed' });
+        return res.status(400).json({ success: false, message: 'Meeting already completed' });
       }
 
       meeting.status = 'OPEN';
@@ -106,13 +108,13 @@ const meetingController = {
       const meeting = await Meeting.findById(id);
 
       if (!meeting) return res.status(404).json({ success: false, message: 'Meeting not found' });
-      
+
       if (meeting.tutor_id.toString() !== req.user._id.toString()) {
-          return res.status(403).json({ success: false, message: 'Not authorized' });
+        return res.status(403).json({ success: false, message: 'Not authorized' });
       }
 
       if (meeting.status === 'CLOSED') {
-           return res.status(400).json({ success: false, message: 'Window already closed' });
+        return res.status(400).json({ success: false, message: 'Window already closed' });
       }
 
       meeting.status = 'CLOSED';
@@ -122,7 +124,7 @@ const meetingController = {
       res.json({ success: true, message: 'Query window closed', data: meeting });
 
     } catch (error) {
-       console.error('Close window error:', error);
+      console.error('Close window error:', error);
       res.status(500).json({ success: false, message: 'Internal server error' });
     }
   },
@@ -136,7 +138,7 @@ const meetingController = {
       if (!meeting) return res.status(404).json({ success: false, message: 'Meeting not found' });
 
       if (meeting.tutor_id._id.toString() !== req.user._id.toString()) {
-         return res.status(403).json({ success: false, message: 'Not authorized' });
+        return res.status(403).json({ success: false, message: 'Not authorized' });
       }
 
       const queries = await Query.find({ meeting_id: id }).populate('student_id', 'name roll_number');
@@ -214,10 +216,10 @@ const meetingController = {
       const browser = await puppeteer.launch();
       const page = await browser.newPage();
       await page.setContent(htmlContent);
-      
+
       const fileName = `meeting-report-${meeting._id}-${Date.now()}.pdf`;
       const filePath = path.join(reportsDir, fileName);
-      
+
       await page.pdf({ path: filePath, format: 'A4' });
       await browser.close();
 
@@ -236,62 +238,62 @@ const meetingController = {
       });
 
     } catch (error) {
-       console.error('Generate PDF error:', error);
+      console.error('Generate PDF error:', error);
       res.status(500).json({ success: false, message: 'Internal server error' });
     }
   },
 
   // Get All Meetings (for HOD or Tutor's view)
   async getMeetings(req, res) {
-      try {
-        const { role, _id } = req.user;
-        const id = _id; 
-        let filter = {};
+    try {
+      const { role, _id } = req.user;
+      const id = _id;
+      let filter = {};
 
-        if (role === 'faculty') {
-            filter = { tutor_id: id };
-        } else if (role === 'student') {
-             const student = await Student.findById(id);
-             if (student && student.tutor_id) {
-                 filter = { tutor_id: student.tutor_id };
-             } else {
-                 return res.json({ success: true, data: [] }); // No tutor assigned
-             }
+      if (role === 'faculty') {
+        filter = { tutor_id: id };
+      } else if (role === 'student') {
+        const student = await Student.findById(id);
+        if (student && student.tutor_id) {
+          filter = { tutor_id: student.tutor_id };
+        } else {
+          return res.json({ success: true, data: [] }); // No tutor assigned
         }
-        // HOD sees all
-        // Requirement: HOD View + download all tutor PDFs.
-        // Assuming HOD can see all.
-
-        const meetings = await Meeting.find(filter).sort({ created_at: -1 }).populate('tutor_id', 'name');
-        res.json({ success: true, data: meetings });
-      } catch (error) {
-          res.status(500).json({ success: false, message: 'Error fetching meetings' });
       }
+      // HOD sees all
+      // Requirement: HOD View + download all tutor PDFs.
+      // Assuming HOD can see all.
+
+      const meetings = await Meeting.find(filter).sort({ created_at: -1 }).populate('tutor_id', 'name');
+      res.json({ success: true, data: meetings });
+    } catch (error) {
+      res.status(500).json({ success: false, message: 'Error fetching meetings' });
+    }
   },
 
   // Get specific meeting details
   async getMeetingById(req, res) {
-      try {
-          const { id } = req.params;
-          const meeting = await Meeting.findById(id).populate('tutor_id', 'name');
-          if(!meeting) return res.status(404).json({success: false, message: 'Not found'});
-          
-          res.json({ success: true, data: meeting });
-      } catch(error) {
-          res.status(500).json({ success: false, message: 'Error fetching meeting' });
-      }
+    try {
+      const { id } = req.params;
+      const meeting = await Meeting.findById(id).populate('tutor_id', 'name');
+      if (!meeting) return res.status(404).json({ success: false, message: 'Not found' });
+
+      res.json({ success: true, data: meeting });
+    } catch (error) {
+      res.status(500).json({ success: false, message: 'Error fetching meeting' });
+    }
   },
 
   // Get Queries for a meeting
   async getMeetingQueries(req, res) {
-      try {
-          const { id } = req.params;
-          // Check access?
-          const queries = await Query.find({ meeting_id: id }).populate('student_id', 'name roll_number');
-          res.json({ success: true, data: queries });
-      } catch(error) {
-          res.status(500).json({ success: false, message: 'Error fetching queries' });
-      }
+    try {
+      const { id } = req.params;
+      // Check access?
+      const queries = await Query.find({ meeting_id: id }).populate('student_id', 'name roll_number');
+      res.json({ success: true, data: queries });
+    } catch (error) {
+      res.status(500).json({ success: false, message: 'Error fetching queries' });
+    }
   }
 
 };

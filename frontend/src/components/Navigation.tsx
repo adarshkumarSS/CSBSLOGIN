@@ -15,7 +15,7 @@ const Navigation = () => {
         {/* Leftmost corner - College name */}
         <div className="flex items-center gap-2 px-2 py-3 rounded-lg">
           <div className="inline-flex items-center justify-center w-20 h-20 rounded-lg">
-            <img src="/asset/logo.png" alt="Logo" className="h-16 w-16 object-contain" />
+            <img src="/asset/1.png" alt="Logo" className="h-16 w-16 object-contain" />
           </div>
           <div className="hidden sm:block">
             <h1 className="text-xl font-bold text-white">Thiagarajar College of Engineering</h1>

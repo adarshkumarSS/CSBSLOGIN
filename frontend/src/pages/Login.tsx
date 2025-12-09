@@ -39,7 +39,7 @@ const Login = () => {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-28 h-28 mb-2">
-            <img src="/asset/logo.png" alt="Logo" className="h-24 w-24 object-contain" />
+            <img src="/asset/1.png" alt="Logo" className="h-24 w-24 object-contain" />
           </div>
           <h1 className="text-3xl font-bold text-foreground mb-1">Thiagarajar College of Engineering</h1>
           <p className="text-muted-foreground">Computer Science and Business Systems</p>

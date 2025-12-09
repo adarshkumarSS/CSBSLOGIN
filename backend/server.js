@@ -20,8 +20,8 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 app.use(cors({
   origin: process.env.NODE_ENV === 'production'
-    ? ['https://your-production-domain.com'] 
-    : ['http://localhost:8080', 'http://127.0.0.1:8080'], 
+    ? ['https://your-production-domain.com']
+    : ['http://localhost:8080', 'http://127.0.0.1:8080', 'http://localhost:8081', 'http://localhost:5173'],
   credentials: true
 }));
 
@@ -35,7 +35,7 @@ app.get('/health', (req, res) => {
     message: 'frontend API is running',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV,
-    db: 'mongodb' 
+    db: 'mongodb'
   });
 });
 
@@ -91,7 +91,7 @@ const startServer = async () => {
   try {
     // Connect to MongoDB
     await connectDB();
-    
+
     // Listen
     const server = app.listen(PORT, () => {
       console.log('🚀 ============================================');

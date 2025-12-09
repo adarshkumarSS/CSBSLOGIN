@@ -38,7 +38,7 @@ const meetingSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: ['DRAFT', 'OPEN', 'CLOSED', 'COMPLETED'],
-    default: 'DRAFT'
+    default: 'OPEN'
   },
   query_start: {
     type: Date
@@ -55,7 +55,7 @@ const meetingSchema = new mongoose.Schema({
   }
 });
 
-// Prevent multiple meetings for same month/year/tutor
-meetingSchema.index({ tutor_id: 1, month: 1, year: 1 }, { unique: true });
+// Prevent multiple meetings for same month/year/tutor (REMOVED to allow multiple meetings)
+// meetingSchema.index({ tutor_id: 1, month: 1, year: 1 }, { unique: true });
 
 module.exports = mongoose.model('Meeting', meetingSchema);

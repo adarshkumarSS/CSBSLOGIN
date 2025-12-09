@@ -37,4 +37,12 @@ router.get(
     queryController.getTutorQueries
 );
 
+// Get Student History
+router.get(
+    '/my-history',
+    verifyToken,
+    requireRole(['student']),
+    queryController.getStudentQueryHistory
+);
+
 module.exports = router;
