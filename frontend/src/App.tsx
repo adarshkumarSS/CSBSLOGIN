@@ -11,7 +11,7 @@ import NotFound from "./pages/NotFound";
 import SelectYear from "./pages/SelectYear";
 import StudentDashboard from "./pages/dashboards/StudentDashboard";
 import FacultyDashboard from "./pages/dashboards/FacultyDashboard";
-import HodDashboard from "./pages/dashboards/HodDashboard";
+import AdminDashboard from "./pages/dashboards/AdminDashboard";
 import UserManagement from "./pages/UserManagement";
 
 const queryClient = new QueryClient();
@@ -35,10 +35,15 @@ const ProtectedRoute = ({ children, allowedRole }: { children: React.ReactNode; 
 
 const AppRoutes = () => {
   const { user } = useAuth();
+  
+  const getDashboardPath = (role: string) => {
+    if (role === 'hod' || role === 'admin') return '/admin/dashboard';
+    return `/${role}/dashboard`;
+  };
 
   return (
     <Routes>
-      <Route path="/" element={user ? <Navigate to={`/${user.role}/dashboard`} replace /> : <Login />} />
+      <Route path="/" element={user ? <Navigate to={getDashboardPath(user.role)} replace /> : <Login />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
 
       {/* Student Routes */}
@@ -60,13 +65,13 @@ const AppRoutes = () => {
         </ProtectedRoute>
       } />
 
-      {/* HOD Routes */}
-      <Route path="/hod/dashboard" element={
-        <ProtectedRoute allowedRole="hod">
-          <HodDashboard />
+      {/* Admin/HOD Routes */}
+      <Route path="/admin/dashboard" element={
+        <ProtectedRoute allowedRole={['admin', 'hod']}>
+          <AdminDashboard />
         </ProtectedRoute>
       } />
-      <Route path="/hod/user-management" element={
+      <Route path="/admin/user-management" element={
         <ProtectedRoute allowedRole="hod">
           <UserManagement />
         </ProtectedRoute>

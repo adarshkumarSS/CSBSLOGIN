@@ -26,10 +26,10 @@ const DashboardLayout = ({
       <div className="container mx-auto px-4 py-6 md:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="mb-8">
-            {showBackToHod && user?.role === 'hod' && (
+            {showBackToHod && (user?.role === 'hod' || user?.role === 'admin') && (
               <div className="mb-4">
                 <Button variant="outline" className="button-hover" asChild>
-                  <a href="/hod/dashboard">← Back to HOD Dashboard</a>
+                  <a href="/admin/dashboard">← Back to Admin Dashboard</a>
                 </Button>
               </div>
             )}

@@ -38,6 +38,9 @@ router.post('/:id/generate-pdf', verifyToken, requireRole(['faculty', 'hod']), m
 // Submit Response (Student only) - NEW
 router.post('/:id/submit', verifyToken, requireRole(['student']), meetingController.submitResponse);
 
+// Get responses for a meeting (Faculty)
+router.get('/:id/responses', verifyToken, requireRole(['faculty', 'hod']), meetingController.getMeetingResponses);
+
 // QUERY ROUTES
 
 // Submit Query (Student)

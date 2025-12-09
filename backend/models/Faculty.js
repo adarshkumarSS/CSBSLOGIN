@@ -35,6 +35,8 @@ const facultySchema = new mongoose.Schema({
     type: String,
     default: 'faculty'
   },
+  reset_password_otp: String,
+  reset_password_expires: Date,
   created_at: {
     type: Date,
     default: Date.now

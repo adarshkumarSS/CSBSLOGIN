@@ -161,4 +161,101 @@ const authController = {
   }
 };
 
+// Generate 6 digit OTP
+const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
+
+// Forgot Password
+authController.forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
+
+    let user = await Student.findOne({ email });
+    let userType = 'student';
+
+    if (!user) {
+      user = await Faculty.findOne({ email });
+      userType = 'faculty';
+    }
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const otp = generateOTP();
+    user.reset_password_otp = otp;
+    user.reset_password_expires = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+    await user.save();
+
+    // Send Email
+    const { sendEmail, templates } = require('../utils/emailService');
+    const sent = await sendEmail(email, 'Password Reset Code', templates.verification(otp));
+
+    if (sent) {
+      res.json({ success: true, message: 'Verification code sent to email' });
+    } else {
+      res.status(500).json({ success: false, message: 'Failed to send email' });
+    }
+
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
+// Verify OTP
+authController.verifyOtp = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) return res.status(400).json({ success: false, message: 'Email and Code are required' });
+
+    let user = await Student.findOne({ email });
+    if (!user) user = await Faculty.findOne({ email });
+
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    if (user.reset_password_otp !== otp || user.reset_password_expires < Date.now()) {
+      return res.status(400).json({ success: false, message: 'Invalid or expired code' });
+    }
+
+    res.json({ success: true, message: 'Code verified' });
+  } catch (error) {
+    console.error('Verify OTP error:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
+// Reset Password
+authController.resetPassword = async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+    if (!email || !otp || !newPassword) return res.status(400).json({ success: false, message: 'All fields are required' });
+
+    let user = await Student.findOne({ email });
+    if (!user) user = await Faculty.findOne({ email });
+
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    if (user.reset_password_otp !== otp || user.reset_password_expires < Date.now()) {
+      return res.status(400).json({ success: false, message: 'Invalid or expired code' });
+    }
+
+    // Hash new password
+    const salt = await bcrypt.genSalt(10);
+    user.password_hash = await bcrypt.hash(newPassword, salt);
+    
+    // Clear OTP
+    user.reset_password_otp = undefined;
+    user.reset_password_expires = undefined;
+
+    await user.save();
+
+    res.json({ success: true, message: 'Password reset successful' });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
 module.exports = authController;

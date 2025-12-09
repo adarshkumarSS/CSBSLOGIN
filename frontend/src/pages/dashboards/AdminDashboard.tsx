@@ -23,7 +23,7 @@ interface Meeting {
   department: string;
 }
 
-const HodDashboard = () => {
+const AdminDashboard = () => {
   const { user } = useAuth();
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [loading, setLoading] = useState(true);
@@ -109,10 +109,7 @@ const HodDashboard = () => {
                   if (!newSelection.includes(rid)) newSelection.push(rid);
               });
           } else {
-              // Remove range from selection (optional, but good UX if checking sets false)
-               // However, standard shift-click usually extends the "active" state. 
-               // If checking a box, we add. If unchecking, we remove?
-               // Let's assume user wants to SELECT fast. 
+              // Remove range from selection
                rangeIds.forEach(rid => {
                    const idx = newSelection.indexOf(rid);
                    if (idx > -1) newSelection.splice(idx, 1);
@@ -140,8 +137,8 @@ const HodDashboard = () => {
     }
   }, [view]);
 
-  const title = "HOD Dashboard";
-  const subtitle = `Welcome, ${user?.name}!`;
+  const title = "Admin Dashboard";
+  const subtitle = "System Administration";
 
   return (
     <DashboardLayout title={title} subtitle={subtitle}>
@@ -251,8 +248,6 @@ const HodDashboard = () => {
                                             <tr key={s._id}>
                                                 <td className="px-4 py-2"><input type="checkbox" checked={selectedStudents.includes(s._id)} 
                                                     onChange={(e) => handleStudentSelect(s._id, index, e)} 
-                                                    // Also add onClick to ensure we catch modifier keys reliably if onChange misses them (React onChange sometimes behaves oddly with modifiers)
-                                                    // Actually React onChange event typically includes shiftKey properties.
                                                 /></td>
                                                 <td className="px-4 py-2">{s.roll_number}</td>
                                                 <td className="px-4 py-2">{s.name}</td>
@@ -272,4 +267,4 @@ const HodDashboard = () => {
   );
 };
 
-export default HodDashboard;
+export default AdminDashboard;

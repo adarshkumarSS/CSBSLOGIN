@@ -3,14 +3,19 @@ import { useAuth } from '@/contexts/AuthContext';
 import DashboardLayout from '@/components/DashboardLayout';
 import api from '@/lib/api';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Plus, FileText, Lock, Unlock, CheckCircle, XCircle, Search, Filter, History, Users, MessageSquare, Calendar } from 'lucide-react';
+import { Plus, XCircle, Search, History, Users, MessageSquare, Calendar, CheckCircle, FileText } from 'lucide-react';
+import MeetingList from '@/components/meetings/MeetingList';
+import CreateMeetingDialog from '@/components/meetings/CreateMeetingDialog';
+import CourseList from '@/components/faculty/CourseList';
+import RecentActivity from '@/components/faculty/RecentActivity';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface Meeting {
     _id: string;
@@ -74,14 +79,10 @@ const FacultyDashboard = () => {
     const [queriesLoading, setQueriesLoading] = useState(false);
     const [assignedClasses, setAssignedClasses] = useState<AssignedClass[]>([]);
 
-    // Create Meeting Form State
+    // Create Meeting Form State - Handled by CreateMeetingDialog, simplified here
     const [isCreateOpen, setIsCreateOpen] = useState(false);
-    const [formData, setFormData] = useState({
-        type: 'MONTHLY',
-        selectedClassIndex: '' // Index in assignedClasses array
-    });
 
-    // Review State
+    // Review State (restored)
     const [reviewOpen, setReviewOpen] = useState(false);
     const [selectedQuery, setSelectedQuery] = useState<Query | null>(null);
     const [remark, setRemark] = useState('');
@@ -108,41 +109,7 @@ const FacultyDashboard = () => {
         academic_year: '2025-2026'
     });
 
-    // Custom Questions State
-    const [customQuestions, setCustomQuestions] = useState<CustomQuestion[]>([]);
-    const [qType, setQType] = useState<'text' | 'textarea' | 'radio' | 'checkbox'>('text');
-    const [qText, setQText] = useState('');
-    const [qOptions, setQOptions] = useState(''); // Comma separated
-    const [qRequired, setQRequired] = useState(true);
-    const [qConditional, setQConditional] = useState({ enabled: false, dependsOn: '', value: '' });
-
-    const addQuestion = () => {
-        if (!qText.trim()) { toast.error("Question text required"); return; }
-        const newQ: CustomQuestion = {
-            id: Date.now().toString(),
-            type: qType,
-            question: qText,
-            options: qOptions.split(',').map(o => o.trim()).filter(o => o),
-            required: qRequired,
-            conditional: qConditional.enabled ? qConditional : { enabled: false }
-        };
-        setCustomQuestions([...customQuestions, newQ]);
-        // Reset form
-        setQText('');
-        setQOptions('');
-        setQRequired(true);
-        setQType('text');
-        setQConditional({ enabled: false, dependsOn: '', value: '' });
-    };
-
-    const removeQuestion = (id: string) => {
-        setCustomQuestions(customQuestions.filter(q => q.id !== id));
-    };
-
     useEffect(() => {
-        fetchMeetings();
-        fetchAssignedClasses();
-        fetchLogs(); // Load initial logs for side panel
         fetchMeetings();
         fetchAssignedClasses();
         fetchLogs(); // Load initial logs for side panel
@@ -222,23 +189,8 @@ const FacultyDashboard = () => {
         finally { setLogLoading(false); }
     };
 
-    const handleCreateMeeting = async () => {
-        if (!formData.selectedClassIndex) {
-            toast.error("Please select a class");
-            return;
-        }
-        const cls = assignedClasses[parseInt(formData.selectedClassIndex)];
-        const now = new Date();
+    const handleCreateMeeting = async (payload: any) => {
         try {
-            const payload = {
-                month: now.getMonth() + 1,
-                year: now.getFullYear(),
-                type: formData.type,
-                degree: cls.degree,
-                semester: cls.semester,
-                section: cls.section,
-                custom_questions: customQuestions
-            };
             await api.post('/meetings', payload);
             toast.success('Meeting created successfully');
             setIsCreateOpen(false);
@@ -314,353 +266,196 @@ const FacultyDashboard = () => {
         }
     };
 
+    // View Responses Logic
+    const [isResponseOpen, setIsResponseOpen] = useState(false);
+    const [meetingResponses, setMeetingResponses] = useState<any[]>([]);
+    const [responsesLoading, setResponsesLoading] = useState(false);
+    const [selectedMeetingResponse, setSelectedMeetingResponse] = useState<any>(null); // To store meeting details for dialog
+
+    const handleViewResponses = async (meeting: any) => {
+        setSelectedMeetingResponse(meeting);
+        setIsResponseOpen(true);
+        setResponsesLoading(true);
+        try {
+             const res = await api.get(`/meetings/${meeting._id}/responses`);
+             setMeetingResponses(res.data.data);
+        } catch (error) {
+            toast.error('Failed to fetch responses');
+        } finally {
+            setResponsesLoading(false);
+        }
+    };
+
     // Stats
     const activeMeetings = meetings.filter(m => m.status === 'OPEN').length;
     const pendingQueriesCount = logQueries.filter(q => q.status === 'PENDING').length;
 
+
+    const isTutor = assignedClasses.length > 0;
+
     return (
         <DashboardLayout title="Faculty Dashboard" subtitle={`Welcome, ${user?.name}!`} showBackToHod={user?.role === 'hod'}>
             <div className="space-y-6">
+                <Tabs defaultValue="courses" className="space-y-6">
+                <TabsList>
+                    <TabsTrigger value="courses">My Subjects</TabsTrigger>
+                    {isTutor && <TabsTrigger value="mentorship">Mentorship Dashboard</TabsTrigger>}
+                </TabsList>
 
-                {/* Top Stats Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <Card>
-                        <CardContent className="p-4 flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-muted-foreground">My Classes</p>
-                                <h2 className="text-2xl font-bold">{assignedClasses.length}</h2>
-                            </div>
-                            <Users className="h-8 w-8 text-blue-500 opacity-50" />
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardContent className="p-4 flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-muted-foreground">Active Meetings</p>
-                                <h2 className="text-2xl font-bold text-green-600">{activeMeetings}</h2>
-                            </div>
-                            <Calendar className="h-8 w-8 text-green-500 opacity-50" />
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardContent className="p-4 flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-muted-foreground">Pending Queries</p>
-                                <h2 className="text-2xl font-bold text-yellow-600">{pendingQueriesCount}</h2>
-                            </div>
-                            <MessageSquare className="h-8 w-8 text-yellow-500 opacity-50" />
-                        </CardContent>
-                    </Card>
-                    <Card className="bg-primary text-primary-foreground cursor-pointer hover:bg-primary/90 transition-colors" onClick={() => setIsCreateOpen(true)}>
-                        <CardContent className="p-4 flex items-center justify-center h-full">
-                            <div className="flex items-center gap-2 font-semibold">
-                                <Plus className="h-5 w-5" /> Create Meeting
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
+                <TabsContent value="courses" className="space-y-6">
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                         <CourseList 
+                            courses={courses}
+                            onAdd={() => setIsCourseOpen(true)}
+                            onDelete={handleDeleteCourse}
+                         />
+                    </div>
+                </TabsContent>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                     <Card>
-                        <CardHeader className="flex flex-row items-center justify-between pb-2">
-                            <CardTitle className="text-lg font-medium">My Courses (Subject Allocation)</CardTitle>
-                            <Button size="sm" onClick={() => setIsCourseOpen(true)}><Plus className="h-4 w-4 mr-2" /> Add Subject</Button>
-                        </CardHeader>
-                        <CardContent>
-                            {courses.length === 0 ? <p className="text-sm text-muted-foreground">No subjects allocated yet.</p> :
-                                <div className="space-y-2">
-                                    {courses.map(course => (
-                                        <div key={course._id} className="flex items-center justify-between p-2 border rounded-md text-sm">
-                                            <div>
-                                                <p className="font-semibold">{course.subject_name} <span className="text-xs text-muted-foreground">({course.subject_code})</span></p>
-                                                <p className="text-xs text-muted-foreground">{course.year} Year / Sem {course.semester} / Sec {course.section} ({course.degree})</p>
-                                            </div>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => handleDeleteCourse(course._id)}>
-                                                <XCircle className="h-4 w-4" />
-                                            </Button>
-                                        </div>
-                                    ))}
-                                </div>
-                            }
-                        </CardContent>
-                    </Card>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-                    {/* Main Column: Meetings List */}
-                    <div className="lg:col-span-2 space-y-6">
-                        <Card className="min-h-[500px]">
-                            <CardHeader className="flex flex-row items-center justify-between">
-                                <div>
-                                    <CardTitle>My Meetings</CardTitle>
-                                    <CardDescription>Manage your tutor-ward meetings and reports</CardDescription>
-                                </div>
-                            </CardHeader>
-                            <CardContent>
-                                {loading ? <div className="text-center py-8">Loading...</div> :
-                                    meetings.length === 0 ? <div className="text-center py-8 text-muted-foreground">No meetings found. Create one to get started.</div> :
-                                        <div className="space-y-4">
-                                            {meetings.map(meeting => (
-                                                <div key={meeting._id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border rounded-lg hover:bg-muted/30 transition-colors">
-                                                    <div className="space-y-1 mb-3 sm:mb-0">
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="font-semibold">{meeting.degree} {meeting.semester}-{meeting.section}</span>
-                                                            <Badge variant={meeting.status === 'OPEN' ? 'default' : 'secondary'} className={meeting.status === 'OPEN' ? 'bg-green-600' : ''}>
-                                                                {meeting.status}
-                                                            </Badge>
-                                                            <span className="text-xs text-muted-foreground border px-2 py-0.5 rounded uppercase">{meeting.type}</span>
-                                                        </div>
-                                                        <p className="text-sm text-muted-foreground">Date: {meeting.month}/{meeting.year}</p>
-                                                    </div>
-                                                    <div className="flex gap-2">
-                                                        {(meeting.status === 'DRAFT' || meeting.status === 'CLOSED') && (
-                                                            <Button size="sm" variant="outline" onClick={() => handleWindowToggle(meeting, 'open')}>
-                                                                <Unlock className="w-4 h-4 mr-1" /> Open
-                                                            </Button>
-                                                        )}
-                                                        {meeting.status === 'OPEN' && (
-                                                            <Button size="sm" variant="destructive" onClick={() => handleWindowToggle(meeting, 'close')}>
-                                                                <Lock className="w-4 h-4 mr-1" /> Close
-                                                            </Button>
-                                                        )}
-                                                        <Button size="sm" variant="secondary" onClick={() => handleViewQueries(meeting)}>
-                                                            View Queries
-                                                        </Button>
-                                                        {meeting.pdf_path && (
-                                                            <Button size="sm" variant="ghost" onClick={() => window.open(`http://localhost:5000/public${meeting.pdf_path}`, '_blank')}>
-                                                                <FileText className="w-4 h-4 text-blue-600" />
-                                                            </Button>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                }
-                            </CardContent>
-                        </Card>
-
-                        {/* Selected Meeting Details View (Collapsible or Conditional) */}
-                        {selectedMeeting && (
-                            <Card className="border-t-4 border-t-primary animate-in fade-in slide-in-from-bottom-4">
-                                <CardHeader className="flex flex-row items-center justify-between bg-muted/20">
+                {isTutor && (
+                    <TabsContent value="mentorship" className="space-y-6">
+                        {/* Stats Cards */}
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <Card>
+                                <CardContent className="p-4 flex items-center justify-between">
                                     <div>
-                                        <CardTitle className="text-lg"> Queries: {selectedMeeting.degree} {selectedMeeting.semester}-{selectedMeeting.section}</CardTitle>
-                                        <CardDescription>{selectedMeeting.month}/{selectedMeeting.year}</CardDescription>
+                                        <p className="text-sm font-medium text-muted-foreground">My Classes</p>
+                                        <h2 className="text-2xl font-bold">{assignedClasses.length}</h2>
                                     </div>
-                                    <div className="flex gap-2">
-                                        <Button variant="ghost" size="sm" onClick={() => setSelectedMeeting(null)}>Close View</Button>
-                                        {selectedMeeting.status !== 'COMPLETED' && queries.length > 0 && queries.every(q => q.status !== 'PENDING') && (
-                                            <Button variant="outline" size="sm" onClick={() => handleGeneratePDF(selectedMeeting._id)}>
-                                                <FileText className="mr-2 h-4 w-4" /> Generate Report
-                                            </Button>
-                                        )}
+                                    <Users className="h-8 w-8 text-blue-500 opacity-50" />
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardContent className="p-4 flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm font-medium text-muted-foreground">Active Meetings</p>
+                                        <h2 className="text-2xl font-bold text-green-600">{activeMeetings}</h2>
                                     </div>
-                                </CardHeader>
-                                <CardContent className="p-0">
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full text-sm text-left">
-                                            <thead className="bg-muted text-muted-foreground">
-                                                <tr>
-                                                    <th className="px-4 py-3">Student</th>
-                                                    <th className="px-4 py-3">Subject</th>
-                                                    <th className="px-4 py-3">Concern</th>
-                                                    <th className="px-4 py-3">Status</th>
-                                                    <th className="px-4 py-3">Action</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y">
-                                                {queriesLoading ? <tr><td colSpan={5} className="p-4 text-center">Loading queries...</td></tr> :
-                                                    queries.length === 0 ? <tr><td colSpan={5} className="p-4 text-center text-muted-foreground">No queries submitted.</td></tr> :
-                                                        queries.map(q => (
-                                                            <tr key={q._id} className="hover:bg-muted/50">
-                                                                <td className="px-4 py-3">
-                                                                    <div className="font-medium">{q.student_id ? q.student_id.name : 'Unknown'}</div>
-                                                                    <div className="text-xs text-muted-foreground">{q.student_id?.roll_number}</div>
-                                                                </td>
-                                                                <td className="px-4 py-3 font-medium">{q.subject}</td>
-                                                                <td className="px-4 py-3 max-w-[200px] truncate" title={q.concern}>{q.concern}</td>
-                                                                <td className="px-4 py-3">
-                                                                    <Badge variant={q.status === 'APPROVED' ? 'default' : q.status === 'REJECTED' ? 'destructive' : 'secondary'}>
-                                                                        {q.status}
-                                                                    </Badge>
-                                                                </td>
-                                                                <td className="px-4 py-3">
-                                                                    {q.status === 'PENDING' && selectedMeeting.status !== 'COMPLETED' ? (
-                                                                        <div className="flex gap-1">
-                                                                            <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600 bg-green-50 hover:bg-green-100"
-                                                                                onClick={() => { setSelectedQuery(q); setReviewAction('APPROVED'); setRemark(''); setReviewOpen(true); }}>
-                                                                                <CheckCircle className="h-4 w-4" />
-                                                                            </Button>
-                                                                            <Button size="icon" variant="ghost" className="h-8 w-8 text-red-600 bg-red-50 hover:bg-red-100"
-                                                                                onClick={() => { setSelectedQuery(q); setReviewAction('REJECTED'); setRemark(''); setReviewOpen(true); }}>
-                                                                                <XCircle className="h-4 w-4" />
-                                                                            </Button>
-                                                                        </div>
-                                                                    ) : <span className="text-xs text-muted-foreground">{q.tutor_remark || '-'}</span>}
-                                                                </td>
-                                                            </tr>
-                                                        ))}
-                                            </tbody>
-                                        </table>
+                                    <Calendar className="h-8 w-8 text-green-500 opacity-50" />
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardContent className="p-4 flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm font-medium text-muted-foreground">Pending Queries</p>
+                                        <h2 className="text-2xl font-bold text-yellow-600">{pendingQueriesCount}</h2>
+                                    </div>
+                                    <MessageSquare className="h-8 w-8 text-yellow-500 opacity-50" />
+                                </CardContent>
+                            </Card>
+                            <Card className="bg-primary text-primary-foreground cursor-pointer hover:bg-primary/90 transition-colors" onClick={() => setIsCreateOpen(true)}>
+                                <CardContent className="p-4 flex items-center justify-center h-full">
+                                    <div className="flex items-center gap-2 font-semibold">
+                                        <Plus className="h-5 w-5" /> Create Meeting
                                     </div>
                                 </CardContent>
                             </Card>
-                        )}
-                    </div>
+                        </div>
 
-                    {/* Right Column: Recent Logs & Filters */}
-                    <div className="space-y-6">
-                        <Card className="h-full flex flex-col">
-                            <CardHeader className="pb-3 border-b">
-                                <CardTitle className="flex items-center gap-2"><History className="h-5 w-5" /> Recent Activity</CardTitle>
-                            </CardHeader>
-                            <div className="p-4 space-y-3 bg-muted/20">
-                                <Input placeholder="Search queries..." value={logSearch} onChange={e => { setLogSearch(e.target.value); fetchLogs(); }} className="bg-background" />
-                                <div className="flex gap-2">
-                                    <Select value={logStatus} onValueChange={v => { setLogStatus(v); }} onOpenChange={() => fetchLogs()}>
-                                        <SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="ALL">All Status</SelectItem>
-                                            <SelectItem value="PENDING">Pending</SelectItem>
-                                            <SelectItem value="APPROVED">Approved</SelectItem>
-                                            <SelectItem value="REJECTED">Rejected</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                    <Button size="icon" variant="outline" onClick={fetchLogs}><Search className="h-4 w-4" /></Button>
-                                </div>
-                            </div>
-                            <div className="flex-1 overflow-auto max-h-[600px] p-0">
-                                {logLoading ? <div className="p-4 text-center">Loading...</div> :
-                                    logQueries.length === 0 ? <div className="p-4 text-center text-muted-foreground text-sm">No recent queries found.</div> :
-                                        <div className="divide-y">
-                                            {logQueries.map(log => (
-                                                <div key={log._id} className="p-4 hover:bg-muted/50 text-sm">
-                                                    <div className="flex justify-between items-start mb-1">
-                                                        <div className="font-semibold">{log.student_id?.name}</div>
-                                                        <Badge variant="outline" className="text-[10px] h-5">{log.status}</Badge>
-                                                    </div>
-                                                    <p className="font-medium text-xs text-primary mb-1">{log.subject}</p>
-                                                    <p className="text-muted-foreground line-clamp-2 text-xs mb-2">{log.concern}</p>
-                                                    <div className="flex justify-between items-center text-[10px] text-muted-foreground">
-                                                        <span>{log.meeting_id ? `${log.meeting_id.degree} ${log.meeting_id.semester}-${log.meeting_id.section}` : 'N/A'}</span>
-                                                        <span>{new Date(log.created_at).toLocaleDateString()}</span>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                }
-                            </div>
-                        </Card>
-                    </div>
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            {/* Main Column: Meetings List */}
+                            <div className="lg:col-span-2 space-y-6">
+                                <MeetingList 
+                                    meetings={meetings}
+                                    loading={loading}
+                                    onToggleWindow={handleWindowToggle}
+                                    onViewQueries={handleViewQueries}
+                                    onViewResponses={handleViewResponses}
+                                />
 
-                </div>
+                                {/* Selected Meeting Details View */}
+                                {selectedMeeting && (
+                                    <Card className="border-t-4 border-t-primary animate-in fade-in slide-in-from-bottom-4">
+                                        <CardHeader className="flex flex-row items-center justify-between bg-muted/20">
+                                            <div>
+                                                <CardTitle className="text-lg"> Queries: {selectedMeeting.degree} {selectedMeeting.semester}-{selectedMeeting.section}</CardTitle>
+                                                <CardDescription>{selectedMeeting.month}/{selectedMeeting.year}</CardDescription>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <Button variant="ghost" size="sm" onClick={() => setSelectedMeeting(null)}>Close View</Button>
+                                                {selectedMeeting.status !== 'COMPLETED' && queries.length > 0 && queries.every(q => q.status !== 'PENDING') && (
+                                                    <Button variant="outline" size="sm" onClick={() => handleGeneratePDF(selectedMeeting._id)}>
+                                                        <FileText className="mr-2 h-4 w-4" /> Generate Report
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        </CardHeader>
+                                        <CardContent className="p-0">
+                                            <div className="overflow-x-auto">
+                                                <table className="w-full text-sm text-left">
+                                                    <thead className="bg-muted text-muted-foreground">
+                                                        <tr>
+                                                            <th className="px-4 py-3">Student</th>
+                                                            <th className="px-4 py-3">Subject</th>
+                                                            <th className="px-4 py-3">Concern</th>
+                                                            <th className="px-4 py-3">Status</th>
+                                                            <th className="px-4 py-3">Action</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y">
+                                                        {queriesLoading ? <tr><td colSpan={5} className="p-4 text-center">Loading queries...</td></tr> :
+                                                            queries.length === 0 ? <tr><td colSpan={5} className="p-4 text-center text-muted-foreground">No queries submitted.</td></tr> :
+                                                                queries.map(q => (
+                                                                    <tr key={q._id} className="hover:bg-muted/50">
+                                                                        <td className="px-4 py-3">
+                                                                            <div className="font-medium">{q.student_id ? q.student_id.name : 'Unknown'}</div>
+                                                                            <div className="text-xs text-muted-foreground">{q.student_id?.roll_number}</div>
+                                                                        </td>
+                                                                        <td className="px-4 py-3 font-medium">{q.subject}</td>
+                                                                        <td className="px-4 py-3 max-w-[200px] truncate" title={q.concern}>{q.concern}</td>
+                                                                        <td className="px-4 py-3">
+                                                                            <Badge variant={q.status === 'APPROVED' ? 'default' : q.status === 'REJECTED' ? 'destructive' : 'secondary'}>
+                                                                                {q.status}
+                                                                            </Badge>
+                                                                        </td>
+                                                                        <td className="px-4 py-3">
+                                                                            {q.status === 'PENDING' && selectedMeeting.status !== 'COMPLETED' ? (
+                                                                                <div className="flex gap-1">
+                                                                                    <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600 bg-green-50 hover:bg-green-100"
+                                                                                        onClick={() => { setSelectedQuery(q); setReviewAction('APPROVED'); setRemark(''); setReviewOpen(true); }}>
+                                                                                        <CheckCircle className="h-4 w-4" />
+                                                                                    </Button>
+                                                                                    <Button size="icon" variant="ghost" className="h-8 w-8 text-red-600 bg-red-50 hover:bg-red-100"
+                                                                                        onClick={() => { setSelectedQuery(q); setReviewAction('REJECTED'); setRemark(''); setReviewOpen(true); }}>
+                                                                                        <XCircle className="h-4 w-4" />
+                                                                                    </Button>
+                                                                                </div>
+                                                                            ) : <span className="text-xs text-muted-foreground">{q.tutor_remark || '-'}</span>}
+                                                                        </td>
+                                                                    </tr>
+                                                                ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                )}
+                            </div>
+
+                            {/* Right Column: Recent Logs & Filters */}
+                            <div className="space-y-6">
+                                <RecentActivity 
+                                    logs={logQueries}
+                                    loading={logLoading}
+                                    search={logSearch}
+                                    onSearchChange={(val) => { setLogSearch(val); fetchLogs(); }}
+                                    statusFilter={logStatus}
+                                    onStatusChange={(val) => { setLogStatus(val); fetchLogs(); }}
+                                    onRefresh={fetchLogs}
+                                />
+                            </div>
+                        </div>
+                    </TabsContent>
+                )}
+            </Tabs>
 
                 {/* Dialogs */}
-                <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-                    <DialogContent>
-                        <DialogHeader><DialogTitle>Create Meeting</DialogTitle></DialogHeader>
-                        <div className="grid gap-4 py-4">
-                            <div className="bg-muted p-3 rounded-md mb-2">
-                                <p className="text-sm font-medium">For: <span className="text-primary">{new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}</span></p>
-                            </div>
-                            <div>
-                                <Label>Meeting Type</Label>
-                                <Select value={formData.type} onValueChange={v => setFormData({ ...formData, type: v })}>
-                                    <SelectTrigger><SelectValue /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="MONTHLY">Monthly</SelectItem>
-                                        <SelectItem value="END_SEM">End Semester</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div>
-                                <Label>Assign For Class</Label>
-                                {assignedClasses.length > 0 ? (
-                                    <Select value={formData.selectedClassIndex} onValueChange={v => setFormData({ ...formData, selectedClassIndex: v })}>
-                                        <SelectTrigger><SelectValue placeholder="Select Class" /></SelectTrigger>
-                                        <SelectContent>
-                                            {assignedClasses.map((cls, idx) => (
-                                                <SelectItem key={idx} value={idx.toString()}>
-                                                    {cls.degree} Sem-{cls.semester} ({cls.section})
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                ) : <p className="text-sm text-red-500">No classes assigned to you.</p>}
-                            </div>
-                            
-                            {/* Question Builder */}
-                            <div className="border-t pt-4">
-                                <Label className="block mb-2 font-semibold">Custom Questions (Optional)</Label>
-                                
-                                <div className="space-y-3 mb-4 max-h-[200px] overflow-auto border p-2 rounded bg-muted/20">
-                                    {customQuestions.length === 0 ? <p className="text-xs text-muted-foreground text-center">No custom questions added.</p> : 
-                                        customQuestions.map((q, idx) => (
-                                            <div key={q.id} className="flex justify-between items-start bg-background p-2 rounded border text-sm">
-                                                <div>
-                                                    <p className="font-medium">#{idx+1} {q.question} <span className="text-xs text-muted-foreground">({q.type})</span></p>
-                                                    {q.options.length > 0 && <p className="text-xs text-muted-foreground">Options: {q.options.join(', ')}</p>}
-                                                    {q.conditional.enabled && <p className="text-[10px] text-blue-600">If Q#{customQuestions.findIndex(x=>x.id===q.conditional.dependsOn)+1} = {q.conditional.value}</p>}
-                                                </div>
-                                                <Button size="icon" variant="ghost" className="h-6 w-6 text-red-500" onClick={() => removeQuestion(q.id)}><XCircle className="h-4 w-4" /></Button>
-                                            </div>
-                                        ))
-                                    }
-                                </div>
-
-                                <div className="space-y-2 border p-3 rounded bg-muted/50">
-                                    <Label className="text-xs">Add New Question</Label>
-                                    <Input value={qText} onChange={e => setQText(e.target.value)} placeholder="Question Text" className="h-8 text-sm" />
-                                    <div className="flex gap-2">
-                                        <Select value={qType} onValueChange={(v: any) => setQType(v)}>
-                                            <SelectTrigger className="h-8 text-sm w-[120px]"><SelectValue /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="text">Short Text</SelectItem>
-                                                <SelectItem value="textarea">Paragraph</SelectItem>
-                                                <SelectItem value="radio">Radio Options</SelectItem>
-                                                <SelectItem value="checkbox">Checkbox</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                        {(qType === 'radio' || qType === 'checkbox') && (
-                                            <Input value={qOptions} onChange={e => setQOptions(e.target.value)} placeholder="Options (comma sep)" className="h-8 text-sm flex-1" />
-                                        )}
-                                    </div>
-                                    <div className="flex items-center gap-4">
-                                         <div className="flex items-center space-x-2">
-                                            <input type="checkbox" id="req" className="rounded border-gray-300" checked={qRequired} onChange={e => setQRequired(e.target.checked)} />
-                                            <label htmlFor="req" className="text-sm">Mandatory</label>
-                                        </div>
-                                        {/* Simple Conditional Logic Toggle */}
-                                        {customQuestions.length > 0 && (
-                                            <div className="flex items-center gap-2">
-                                                <input type="checkbox" id="cond" className="rounded border-gray-300" checked={qConditional.enabled} onChange={e => setQConditional({...qConditional, enabled: e.target.checked})} />
-                                                <label htmlFor="cond" className="text-sm">Conditional</label>
-                                            </div>
-                                        )}
-                                    </div>
-                                    {qConditional.enabled && (
-                                        <div className="flex gap-2 mt-2">
-                                             <Select value={qConditional.dependsOn} onValueChange={v => setQConditional({...qConditional, dependsOn: v})}>
-                                                <SelectTrigger className="h-8 text-sm w-[120px]"><SelectValue placeholder="Depends On" /></SelectTrigger>
-                                                <SelectContent>
-                                                    {customQuestions.map((q, i) => (
-                                                        <SelectItem key={q.id} value={q.id}>Q#{i+1}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                            <Input value={qConditional.value} onChange={e => setQConditional({...qConditional, value: e.target.value})} placeholder="Value match" className="h-8 text-sm" />
-                                        </div>
-                                    )}
-                                    <Button size="sm" variant="secondary" onClick={addQuestion} className="w-full mt-2">Add Question</Button>
-                                </div>
-
-                            </div>
-
-                            <Button onClick={handleCreateMeeting} disabled={assignedClasses.length === 0}>Create Meeting</Button>
-                        </div>
-                    </DialogContent>
-                </Dialog>
+                <CreateMeetingDialog 
+                    open={isCreateOpen} 
+                    onOpenChange={setIsCreateOpen} 
+                    assignedClasses={assignedClasses} 
+                    onCreate={handleCreateMeeting} 
+                />
 
                 <Dialog open={isCourseOpen} onOpenChange={setIsCourseOpen}>
                     <DialogContent>
@@ -739,6 +534,57 @@ const FacultyDashboard = () => {
                                 variant={reviewAction === 'APPROVED' ? 'default' : 'destructive'}>
                                 Confirm Action
                             </Button>
+                        </div>
+                    </DialogContent>
+                </Dialog>
+
+                {/* View Responses Dialog */}
+                <Dialog open={isResponseOpen} onOpenChange={setIsResponseOpen}>
+                    <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                        <DialogHeader>
+                            <DialogTitle>Student Responses</DialogTitle>
+                            <DialogDescription>
+                                {selectedMeetingResponse?.degree} {selectedMeetingResponse?.semester}-{selectedMeetingResponse?.section}
+                            </DialogDescription>
+                        </DialogHeader>
+                        
+                        <div className="mt-4">
+                            {responsesLoading ? (
+                                <div className="text-center py-4">Loading responses...</div>
+                            ) : meetingResponses.length === 0 ? (
+                                <div className="text-center py-4 text-muted-foreground">No responses submitted yet.</div>
+                            ) : (
+                                <div className="overflow-x-auto border rounded-md">
+                                    <table className="w-full text-sm text-left">
+                                        <thead className="bg-muted text-muted-foreground">
+                                            <tr>
+                                                <th className="px-4 py-2 border-b whitespace-nowrap">Student</th>
+                                                {selectedMeetingResponse?.custom_questions?.map((q: any) => (
+                                                    <th key={q.id} className="px-4 py-2 border-b min-w-[150px]">{q.question}</th>
+                                                ))}
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y">
+                                            {meetingResponses.map((response: any) => (
+                                                <tr key={response._id} className="hover:bg-muted/50">
+                                                    <td className="px-4 py-2 border-r bg-muted/10 font-medium">
+                                                        {response.student_id?.name || 'Unknown'}
+                                                        <div className="text-xs text-muted-foreground">{response.student_id?.roll_number}</div>
+                                                    </td>
+                                                    {selectedMeetingResponse?.custom_questions?.map((q: any) => {
+                                                        const ans = response.answers.find((a: any) => a.questionId === q.id);
+                                                        return (
+                                                            <td key={q.id} className="px-4 py-2 border-r last:border-r-0">
+                                                                {ans ? ans.answer : <span className="text-muted-foreground">-</span>}
+                                                            </td>
+                                                        );
+                                                    })}
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
                         </div>
                     </DialogContent>
                 </Dialog>

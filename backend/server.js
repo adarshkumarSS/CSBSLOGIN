@@ -8,7 +8,7 @@ const connectDB = require('./config/db');
 // Import routes
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
-const passwordResetRoutes = require('./routes/passwordReset');
+// const passwordResetRoutes = require('./routes/passwordReset');
 const meetingRoutes = require('./routes/meetings');
 const queryRoutes = require('./routes/queries');
 const allocationRoutes = require('./routes/allocation');
@@ -43,7 +43,7 @@ app.get('/health', (req, res) => {
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
-app.use('/api/password-reset', passwordResetRoutes);
+// app.use('/api/password-reset', passwordResetRoutes);
 app.use('/api/meetings', meetingRoutes);
 app.use('/api/queries', queryRoutes);
 app.use('/api/allocation', allocationRoutes);

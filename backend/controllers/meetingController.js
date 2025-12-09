@@ -60,6 +60,45 @@ const meetingController = {
         custom_questions: custom_questions || []
       });
 
+      // Notify Students via Email
+      try {
+        const { sendEmail, templates } = require('../utils/emailService');
+        // Find students in this class
+        const students = await Student.find({
+            degree,
+            semester, // assuming exact match (or check logic based on dynamic year/sem)
+            section
+            // Optional: Filter by tutor_id if strict assignment required, but usually creation implies access
+        });
+
+        if (students.length > 0) {
+            const emails = students.map(s => s.email).filter(e => e);
+            if (emails.length > 0) {
+                // Send individually or BCC? For privacy BCC is better, but loop is simpler for template personalization if needed.
+                // Loop helps if we want to personalize, but here generic template is used.
+                // We'll use a loop for now to ensure delivery, or BCC if list is large.
+                // Given standard class size ~60, loop is acceptable for this scale if async.
+                
+                // Fire and forget to avoid delaying response too much?
+                // Or await to ensure it works?
+                // Let's await Promise.all
+                const emailPromises = emails.map(email => 
+                    sendEmail(email, 'New Meeting Alert', templates.meetingNotification(faculty.name, {
+                        type,
+                        degree,
+                        semester,
+                        section
+                    }))
+                );
+                // Don't await fully if we want speed, but user asked to "properly handle".
+                // We'll log errors but not fail the request.
+                Promise.all(emailPromises).catch(err => console.error('Error sending meeting emails:', err));
+            }
+        }
+      } catch (emailErr) {
+        console.error('Email notification setup failed:', emailErr);
+      }
+
       res.status(201).json({
         success: true,
         message: 'Meeting created successfully',
@@ -193,7 +232,7 @@ const meetingController = {
   async generatePDF(req, res) {
     try {
       const { id } = req.params;
-      const meeting = await Meeting.findById(id).populate('tutor_id', 'name department'); // populate tutor name
+      const meeting = await Meeting.findById(id).populate('tutor_id', 'name department');
 
       if (!meeting) return res.status(404).json({ success: false, message: 'Meeting not found' });
 
@@ -201,91 +240,44 @@ const meetingController = {
         return res.status(403).json({ success: false, message: 'Not authorized' });
       }
 
+      const { generateMeetingPDF } = require('../utils/pdfGenerator');
+
+      // 1. Fetch Queries
       const queries = await Query.find({ meeting_id: id }).populate('student_id', 'name roll_number');
 
-      // Check for pending queries
-      const pendingCount = queries.filter(q => q.status === 'PENDING').length;
-      if (pendingCount > 0) {
-        return res.status(400).json({
-          success: false,
-          message: `Cannot generate PDF. There are ${pendingCount} pending queries.`,
-          errorType: 'pending_queries'
-        });
-      }
+      // 2. Fetch All Students in this class assigned to this tutor
+      const allStudents = await Student.find({
+          degree: meeting.degree,
+          semester: meeting.semester, 
+          section: meeting.section,
+          tutor_id: meeting.tutor_id._id // Only get students assigned to this tutor
+      }).select('name roll_number email');
 
-      // Generate HTML Content
-      const htmlContent = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <style>
-            body { font-family: 'Times New Roman', serif; padding: 40px; }
-            h1 { text-align: center; font-size: 18px; font-weight: bold; text-decoration: underline; margin-bottom: 20px; }
-            .header-info { margin-bottom: 20px; font-size: 14px; }
-            .header-row { display: flex; justify-content: space-between; margin-bottom: 10px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th, td { border: 1px solid black; padding: 8px; text-align: left; font-size: 14px; }
-            th { background-color: #f0f0f0; }
-            .signatures { margin-top: 60px; display: flex; justify-content: space-between; font-weight: bold; }
-          </style>
-        </head>
-        <body>
-          <h1>Tutor-Ward Meeting: ${meeting.type === 'MONTHLY' ? 'Monthly' : 'End Semester'} Report</h1>
-          
-          <div class="header-info">
-            <div class="header-row">
-              <span>Month: ${new Date(meeting.year, meeting.month - 1).toLocaleString('default', { month: 'long' })} ${meeting.year}</span>
-              <span>Department: ${meeting.department}</span>
-            </div>
-            <div class="header-row">
-              <span>Degree: ${meeting.degree}</span>
-              <span>Semester: ${meeting.semester}</span>
-              <span>Section: ${meeting.section}</span>
-            </div>
-          </div>
+      // 3. Fetch All Responses
+      const responses = await MeetingResponse.find({ meeting_id: id }).populate('student_id', 'name roll_number');
 
-          <table>
-            <thead>
-              <tr>
-                <th>Name of Student</th>
-                <th>Student Concern</th>
-                <th>Action Taken</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${queries.map(q => `
-                <tr>
-                  <td>${q.student_id ? q.student_id.name : 'Unknown'}</td>
-                  <td>${q.concern}</td>
-                  <td>${q.status === 'APPROVED' ? q.tutor_remark : 'Rejected - ' + q.tutor_remark}</td>
-                </tr>
-              `).join('')}
-              ${queries.length === 0 ? '<tr><td colspan="3" style="text-align:center;">No queries submitted</td></tr>' : ''}
-            </tbody>
-          </table>
+      // 4. Identify Pending Students
+      const submittedStudentIds = new Set(responses.map(r => r.student_id._id.toString()));
+      // Also checking students who submitted queries
+      queries.forEach(q => {
+          if (q.student_id) submittedStudentIds.add(q.student_id._id.toString());
+      });
 
-          <div class="signatures">
-             <span>Tutor Signature</span>
-             <span>HOD Signature</span>
-          </div>
-        </body>
-        </html>
-      `;
+      const pendingStudents = allStudents.filter(s => !submittedStudentIds.has(s._id.toString()));
 
-      // Launch Puppeteer
-      const browser = await puppeteer.launch();
-      const page = await browser.newPage();
-      await page.setContent(htmlContent);
-
-      const fileName = `meeting-report-${meeting._id}-${Date.now()}.pdf`;
-      const filePath = path.join(reportsDir, fileName);
-
-      await page.pdf({ path: filePath, format: 'A4' });
-      await browser.close();
+      // Generate PDF
+      const pdfResult = await generateMeetingPDF({
+          meeting,
+          queries,
+          responses,
+          pendingStudents,
+          totalStudents: allStudents.length,
+          attendanceCount: submittedStudentIds.size
+      });
 
       // Update Meeting
       meeting.status = 'COMPLETED';
-      meeting.pdf_path = `/reports/${fileName}`;
+      meeting.pdf_path = pdfResult.relativePath;
       await meeting.save();
 
       res.json({
@@ -301,6 +293,20 @@ const meetingController = {
       console.error('Generate PDF error:', error);
       res.status(500).json({ success: false, message: 'Internal server error' });
     }
+  },
+
+  // Get Responses for a meeting (Faculty View)
+  async getMeetingResponses(req, res) {
+      try {
+          const { id } = req.params;
+          const responses = await MeetingResponse.find({ meeting_id: id })
+              .populate('student_id', 'name roll_number email');
+          
+          res.json({ success: true, data: responses });
+      } catch (error) {
+          console.error('Get responses error:', error);
+          res.status(500).json({ success: false, message: 'Error fetching responses' });
+      }
   },
 
   // Get All Meetings (for HOD or Tutor's view)
