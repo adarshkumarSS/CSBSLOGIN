@@ -5,6 +5,18 @@ const { verifyToken, requireRole } = require('../middleware/auth');
 
 const router = express.Router();
 
+// Update Query (Student)
+router.put(
+    '/:id',
+    verifyToken,
+    requireRole(['student']),
+    [
+        body('subject').optional().trim().notEmpty(),
+        body('concern').optional().trim().isLength({ min: 5 })
+    ],
+    queryController.updateQuery
+);
+
 // Review Query (Tutor)
 router.patch(
     '/:id',

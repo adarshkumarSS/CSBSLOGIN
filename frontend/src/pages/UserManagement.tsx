@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '../components/ui/badge';
+import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Search, Users, UserCheck, Edit, Trash2, Plus, GraduationCap, AlertTriangle } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
@@ -18,6 +18,219 @@ interface User {
   rollNumber?: string;
   employeeId?: string;
   year?: string;
+  department: string;
+  designation?: string;
+  phone?: string;
+  created_at: string;
+}
+
+export const UserManagementContent = () => {
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [roleFilter, setRoleFilter] = useState<string>('all');
+  const [yearFilter, setYearFilter] = useState<string>('all');
+
+  // Modal states
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [addModalOpen, setAddModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+
+  // Form states
+  const [editForm, setEditForm] = useState({
+    name: '',
+    email: '',
+    rollNumber: '',
+    employeeId: '',
+    year: '',
+    designation: '',
+    phone: ''
+  });
+  const [addForm, setAddForm] = useState({
+    role: 'student' as 'student' | 'faculty',
+    name: '',
+    email: '',
+    password: '',
+    rollNumber: '',
+    employeeId: '',
+    year: '',
+    department: 'Computer Science and Business Systems',
+    designation: '',
+    phone: ''
+  });
+
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        setLoading(true);
+        const params = new URLSearchParams();
+        if (searchTerm) params.append('search', searchTerm);
+        if (roleFilter !== 'all') params.append('role', roleFilter);
+        if (yearFilter !== 'all') params.append('year', yearFilter);
+
+
+        const response = await fetch(`http://localhost:5000/api/users/search?${params}`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          // Transform snake_case to camelCase
+          const transformedData = data.data.map((user: any) => ({
+            ...user,
+            rollNumber: user.roll_number || user.employee_id, // Students have roll_number, faculty have employee_id
+            employeeId: user.employee_id,
+            createdAt: user.created_at
+          }));
+          setUsers(transformedData);
+        }
+      } catch (error) {
+        // Error handled silently
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUsers();
+  }, [searchTerm, roleFilter, yearFilter]);
+
+  const getRoleIcon = (role: string) => {
+    return role === 'student' ? <GraduationCap className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />;
+  };
+
+  const getRoleColor = (role: string) => {
+    return role === 'student' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800';
+  };
+
+  // Modal handlers
+  const openDeleteModal = (user: User) => {
+    setSelectedUser(user);
+    setDeleteModalOpen(true);
+  };
+
+  const openEditModal = (user: User) => {
+    setSelectedUser(user);
+    setEditForm({
+      name: user.name,
+      email: user.email,
+      rollNumber: user.rollNumber || '',
+      employeeId: user.employeeId || '',
+      year: user.year || '',
+      designation: user.designation || '',
+      phone: user.phone || ''
+    });
+    setEditModalOpen(true);
+  };
+
+  const openAddModal = () => {
+    setAddForm({
+      role: 'student',
+      name: '',
+      email: '',
+      password: '',
+      rollNumber: '',
+      employeeId: '',
+      year: '',
+      department: 'Computer Science and Business Systems',
+      designation: '',
+      phone: ''
+    });
+    setAddModalOpen(true);
+  };
+
+  // Form handlers
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedUser) return;
+
+    try {
+      const response = await fetch(`http://localhost:5000/api/users/${selectedUser.id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          role: selectedUser.role,
+          ...editForm
+        })
+      });
+
+      if (response.ok) {
+        const updatedUser = await response.json();
+        // Transform snake_case to camelCase
+        const transformedUser = {
+          ...updatedUser.data,
+          rollNumber: updatedUser.data.roll_number,
+          employeeId: updatedUser.data.employee_id,
+          createdAt: updatedUser.data.created_at
+        };
+        setUsers(users.map(u => u.id === selectedUser.id ? transformedUser : u));
+        setEditModalOpen(false);
+      }
+      } catch (error) {
+        // Error handled silently
+      }
+  };
+
+  const handleAddSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    console.log('Sending add form data:', addForm); // Debug log
+
+    try {
+      const response = await fetch('http://localhost:5000/api/users', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(addForm)
+      });
+
+      if (response.ok) {
+        const newUser = await response.json();
+        const transformedUser = {
+          ...newUser.data,
+          rollNumber: newUser.data.roll_number,
+          employeeId: newUser.data.employee_id,
+          createdAt: newUser.data.created_at
+        };
+        setUsers([...users, transformedUser]);
+        setAddModalOpen(false);
+      }
+    } catch (error) {
+      // Error handled silently
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!selectedUser) return;
+
+    try {
+      const response = await fetch(`http://localhost:5000/api/users/${selectedUser.id}?role=${selectedUser.role}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        setUsers(users.filter(u => u.id !== selectedUser.id));
+        setDeleteModalOpen(false);
+      }
+    } catch (error) {
+      // Error handled silently
+    }
+  };
+
+  return (
       <div className="space-y-6">
         {/* Filters and Search */}
         <Card>
@@ -460,6 +673,17 @@ interface User {
           </DialogContent>
         </Dialog>
       </div>
+  );
+};
+
+const UserManagement = () => {
+  return (
+    <DashboardLayout
+      title="User Management"
+      subtitle="Manage all students and faculty accounts"
+      showBackToHod={true}
+    >
+      <UserManagementContent />
     </DashboardLayout>
   );
 };

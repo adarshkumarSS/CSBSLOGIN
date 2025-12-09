@@ -11,6 +11,12 @@ const querySchema = new mongoose.Schema({
     ref: 'Student',
     required: true
   },
+  subject: {
+    type: String,
+    required: true,
+    trim: true,
+    maxlength: 100
+  },
   concern: {
     type: String,
     required: true,
@@ -33,7 +39,7 @@ const querySchema = new mongoose.Schema({
   }
 });
 
-// Ensure a student can only submit one query per meeting
-querySchema.index({ meeting_id: 1, student_id: 1 }, { unique: true });
+// Allow multiple queries per meeting from same student (removed unique index)
+querySchema.index({ meeting_id: 1, student_id: 1 });
 
 module.exports = mongoose.model('Query', querySchema);

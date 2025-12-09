@@ -4,11 +4,16 @@ const Student = require('../models/Student');
 
 const queryController = {
   // Submit a query (Student only)
+  // Submit a query (Student only)
   async submitQuery(req, res) {
     try {
       const { meetingId } = req.params;
-      const { concern } = req.body;
+      const { subject, concern } = req.body; // Added subject
       const studentId = req.user._id || req.user.id;
+
+      if (!subject) {
+          return res.status(400).json({ success: false, message: 'Subject is required' });
+      }
 
       // 1. Check if meeting exists and is OPEN
       const meeting = await Meeting.findById(meetingId);
@@ -37,20 +42,13 @@ const queryController = {
          });
       }
 
-      // 3. Check for duplicate query
-      const existingQuery = await Query.findOne({ meeting_id: meetingId, student_id: studentId });
-      if (existingQuery) {
-        return res.status(409).json({
-          success: false,
-          message: 'You have already submitted a query for this meeting',
-          errorType: 'duplicate_query'
-        });
-      }
+      // REMOVED: Check for duplicate query (User allows multiple queries)
 
       // 4. Create Query
       const query = await Query.create({
         meeting_id: meetingId,
         student_id: studentId,
+        subject,
         concern,
         status: 'PENDING'
       });
@@ -65,6 +63,41 @@ const queryController = {
       console.error('Submit query error:', error);
       res.status(500).json({ success: false, message: 'Internal server error' });
     }
+  },
+
+  // Update a query (Student only)
+  async updateQuery(req, res) {
+      try {
+          const { id } = req.params;
+          const { subject, concern } = req.body;
+          const studentId = req.user._id || req.user.id;
+
+          const query = await Query.findById(id).populate('meeting_id');
+          if (!query) {
+              return res.status(404).json({ success: false, message: 'Query not found' });
+          }
+
+          if (query.student_id.toString() !== studentId.toString()) {
+              return res.status(403).json({ success: false, message: 'Not authorized' });
+          }
+
+          if (query.status !== 'PENDING') {
+              return res.status(400).json({ success: false, message: 'Query is locked' });
+          }
+
+          if (query.meeting_id.status !== 'OPEN') {
+              return res.status(400).json({ success: false, message: 'Meeting window closed' });
+          }
+
+          if (subject) query.subject = subject;
+          if (concern) query.concern = concern;
+          await query.save();
+
+          res.json({ success: true, data: query });
+      } catch (error) {
+          console.error(error);
+          res.status(500).json({ success: false, message: 'Server error' });
+      }
   },
 
   // Review a query (Tutor only)

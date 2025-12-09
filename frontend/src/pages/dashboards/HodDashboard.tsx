@@ -7,6 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { FileText, Download } from 'lucide-react';
 
+import { UserManagementContent } from '../UserManagement';
+
 interface Meeting {
   _id: string;
   month: number;
@@ -27,12 +29,12 @@ const HodDashboard = () => {
   const [loading, setLoading] = useState(true);
 
   // Allocation State
-  const [view, setView] = useState<'MEETINGS' | 'ALLOCATION'>('MEETINGS');
+  const [view, setView] = useState<'MEETINGS' | 'ALLOCATION' | 'USERS'>('MEETINGS');
   const [students, setStudents] = useState<any[]>([]);
   const [faculties, setFaculties] = useState<any[]>([]);
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
   const [selectedTutor, setSelectedTutor] = useState<string>('');
-  const [filters, setFilters] = useState({ year: new Date().getFullYear().toString(), semester: '5', section: 'A' });
+  const [filters, setFilters] = useState({ year: 'III', semester: '5', section: 'A' });
   const [allocLoading, setAllocLoading] = useState(false);
 
   const fetchMeetings = async () => {
@@ -103,6 +105,7 @@ const HodDashboard = () => {
       <div className="space-y-6">
         <div className="flex space-x-4 border-b pb-2">
             <button className={`pb-2 font-medium ${view === 'MEETINGS' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground'}`} onClick={() => setView('MEETINGS')}>Meetings</button>
+            <button className={`pb-2 font-medium ${view === 'USERS' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground'}`} onClick={() => setView('USERS')}>User Management</button>
             <button className={`pb-2 font-medium ${view === 'ALLOCATION' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground'}`} onClick={() => setView('ALLOCATION')}>Allocation</button>
         </div>
 
@@ -147,13 +150,28 @@ const HodDashboard = () => {
                 </table>
             </div>
         </div>
+        ) : view === 'USERS' ? (
+           <UserManagementContent />
         ) : (
             <div className="space-y-4">
                 <Card>
                     <CardHeader><CardTitle>Assign Tutors</CardTitle></CardHeader>
                     <CardContent>
                         <div className="grid grid-cols-4 gap-4 items-end">
-                            <div><label className="text-sm font-medium">Year</label><input className="flex h-10 w-full rounded-md border border-input bg-background px-3" value={filters.year} onChange={e => setFilters({...filters, year: e.target.value})} /></div>
+                            <div>
+                                <label className="text-sm font-medium">Year</label>
+                                <select 
+                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                                    value={filters.year} 
+                                    onChange={e => setFilters({...filters, year: e.target.value})}
+                                >
+                                    <option value="">Select Year</option>
+                                    <option value="I">I</option>
+                                    <option value="II">II</option>
+                                    <option value="III">III</option>
+                                    <option value="IV">IV</option>
+                                </select>
+                            </div>
                             <div><label className="text-sm font-medium">Semester</label><input className="flex h-10 w-full rounded-md border border-input bg-background px-3" value={filters.semester} onChange={e => setFilters({...filters, semester: e.target.value})} /></div>
                             <div><label className="text-sm font-medium">Section</label><input className="flex h-10 w-full rounded-md border border-input bg-background px-3" value={filters.section} onChange={e => setFilters({...filters, section: e.target.value})} /></div>
                             <Button onClick={fetchStudents} disabled={allocLoading}>Fetch Students</Button>

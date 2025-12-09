@@ -44,8 +44,9 @@ router.post(
     verifyToken,
     requireRole(['student']),
     [
-        body('concern').trim().isLength({ min: 5 })
-    ], // Fixed syntax here (removed extra comma/bracket mess if any)
+        body('subject').trim().notEmpty().withMessage('Subject is required'),
+        body('concern').trim().isLength({ min: 5 }).withMessage('Concern must be at least 5 characters long')
+    ],
     queryController.submitQuery
 );
 
