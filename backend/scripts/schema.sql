@@ -40,7 +40,6 @@ CREATE TABLE IF NOT EXISTS faculty (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_students_email ON students(email);
 CREATE INDEX IF NOT EXISTS idx_students_roll_number ON students(roll_number);
