@@ -1,0 +1,24 @@
+[
+  {
+    "name": "Abineshwari Muthukumar",
+    "email": "abineshwarisharmila@gmail.com",
+    "password": "student123",
+    "roll_number": "H24422002",
+    "batch": 2023,
+    "department": "Computer Science and Business Systems",
+    "degree": "B.Tech",
+    "section": "A",
+    "phone": "+91 9442327660"
+  },
+  {
+    "name": "Adarshkumar Sathiyamoorthy Sonai",
+    "email": "zainadarsh@gmail.com",
+    "password": "student123",
+    "roll_number": "H24421003",
+    "batch": 2023,
+    "department": "Computer Science and Business Systems",
+    "degree": "B.Tech",
+    "section": "A",
+    "phone": "+91 7845936644"
+  }
+]

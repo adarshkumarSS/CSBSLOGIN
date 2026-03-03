@@ -20,5 +20,8 @@ const loginValidation = [
 router.post('/login', loginValidation, authController.login);
 router.get('/profile', verifyToken, authController.getProfile);
 router.post('/logout', authController.logout);
+router.post('/forgot-password', authController.forgotPassword);
+router.post('/verify-otp', authController.verifyOtp);
+router.post('/reset-password', authController.resetPassword);
 
 module.exports = router;

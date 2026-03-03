@@ -1,9 +1,8 @@
 const bcrypt = require('bcryptjs');
-const pool = require('../config/database');
+const Student = require('../models/Student');
+const Faculty = require('../models/Faculty');
 
 const userController = {
-
-
   // Create new user
   async createUser(req, res) {
     try {
@@ -20,12 +19,12 @@ const userController = {
       // Check if email already exists
       let existingUser;
       if (role === 'student') {
-        existingUser = await pool.query('SELECT id FROM students WHERE email = $1', [email]);
+        existingUser = await Student.findOne({ email });
       } else {
-        existingUser = await pool.query('SELECT id FROM faculty WHERE email = $1', [email]);
+        existingUser = await Faculty.findOne({ email });
       }
 
-      if (existingUser.rows.length > 0) {
+      if (existingUser) {
         return res.status(400).json({
           success: false,
           message: `Email already exists in the ${role} table`
@@ -35,15 +34,52 @@ const userController = {
       // Hash password
       const hashedPassword = await bcrypt.hash(password, 12);
 
-      let query, values;
+      let newUser;
+      let savedUser;
+
       if (role === 'student') {
-        query = `
-          INSERT INTO students (name, email, password_hash, roll_number, year, department, phone)
-          VALUES ($1, $2, $3, $4, $5, $6, $7)
-          RETURNING id, name, email, roll_number, year, department, phone, 'student' as role
-        `;
-        values = [name, email, hashedPassword, userData.rollNumber, userData.year, userData.department, userData.phone];
+        newUser = new Student({
+          name,
+          email,
+          password_hash: hashedPassword,
+          roll_number: userData.rollNumber,
+          year: userData.year,
+          department: userData.department,
+          phone: userData.phone
+        });
+        savedUser = await newUser.save();
       } else {
+        newUser = new Faculty({
+          name,
+          email,
+          password_hash: hashedPassword,
+          employee_id: userData.employeeId,
+          department: userData.department,
+          designation: userData.designation,
+          phone: userData.phone
+        });
+        savedUser = await newUser.save();
+      }
+
+      // Map response to match frontend expectation
+      const responseData = savedUser.toObject();
+      responseData.id = responseData._id; // Map _id to id
+      delete responseData._id;
+      delete responseData.password_hash;
+      responseData.role = role;
+
+      // Handle specific field mapping if needed (snake_case vs camelCase for response?)
+      // Original SQL returned snake_case or whatever naming was in DB, but actually in SQL string it was:
+      // RETURNING id, name, email, roll_number, year, department, phone
+      // The frontend likely expects these snake_case or camelCase?
+      // In JS object from SQL node-pg, it's usually column name.
+      // My schema uses snake_case for `roll_number`, `employee_id`. So Mongoose object will have `roll_number`.
+      // The original `values` array used `userData.rollNumber`, so input was camelCase.
+      // SQL Insert used `roll_number`.
+      // So input: camelCase. Output: whatever SQL returned.
+      // SQL `RETURNING ... roll_number` -> output object has `roll_number`.
+      // Mongoose schema has `roll_number`. So `savedUser` has `roll_number`.
+      // Perfect.
         query = `
           INSERT INTO faculty (name, email, password_hash, employee_id, department, designation, phone, years_of_experience, degree, works,educational_qualifications,awards_honours,other_achievements)
           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
@@ -56,10 +92,11 @@ const userController = {
       res.status(201).json({
         success: true,
         message: 'User created successfully',
-        data: result.rows[0]
+        data: responseData
       });
 
     } catch (error) {
+      console.error('Create user error:', error);
       res.status(500).json({
         success: false,
         message: 'Internal server error'
@@ -73,16 +110,40 @@ const userController = {
       const { id } = req.params;
       const { role, name, email, ...userData } = req.body;
 
-      let query, values;
+      let updatedUser;
+      
       if (role === 'student') {
-        query = `
-          UPDATE students
-          SET name = $1, email = $2, roll_number = $3, year = $4, department = $5, phone = $6, updated_at = CURRENT_TIMESTAMP
-          WHERE id = $7
-          RETURNING id, name, email, roll_number, year, department, phone, 'student' as role
-        `;
-        values = [name, email, userData.rollNumber, userData.year, userData.department, userData.phone, id];
+        const updateData = {
+          name,
+          email,
+          roll_number: userData.rollNumber,
+          year: userData.year,
+          department: userData.department,
+          phone: userData.phone,
+          updated_at: Date.now()
+        };
+        
+        updatedUser = await Student.findByIdAndUpdate(id, updateData, { new: true });
+        if (updatedUser) updatedUser = updatedUser.toObject();
+        if (updatedUser) updatedUser.role = 'student';
+
       } else {
+        const updateData = {
+          name,
+          email,
+          employee_id: userData.employeeId,
+          department: userData.department,
+          designation: userData.designation,
+          phone: userData.phone,
+          updated_at: Date.now()
+        };
+
+        updatedUser = await Faculty.findByIdAndUpdate(id, updateData, { new: true });
+        if (updatedUser) updatedUser = updatedUser.toObject();
+        if (updatedUser) updatedUser.role = 'faculty';
+      }
+
+      if (!updatedUser) {
         query = `
           UPDATE faculty
           SET name = $1, email = $2, employee_id = $3, department = $4, designation = $5, phone = $6, years_of_experience = $7, degree = $8, works = $9, educational_qualifications = $10, awards_honours = $11, other_achievements = $12, updated_at = CURRENT_TIMESTAMP
@@ -101,13 +162,18 @@ const userController = {
         });
       }
 
+      updatedUser.id = updatedUser._id;
+      delete updatedUser._id;
+      delete updatedUser.password_hash;
+
       res.json({
         success: true,
         message: 'User updated successfully',
-        data: result.rows[0]
+        data: updatedUser
       });
 
     } catch (error) {
+      console.error('Update user error:', error);
       res.status(500).json({
         success: false,
         message: 'Internal server error'
@@ -121,18 +187,14 @@ const userController = {
       const { id } = req.params;
       const { role } = req.query;
 
-      let query, tableName;
+      let result;
       if (role === 'student') {
-        tableName = 'students';
-        query = 'DELETE FROM students WHERE id = $1';
+        result = await Student.findByIdAndDelete(id);
       } else {
-        tableName = 'faculty';
-        query = 'DELETE FROM faculty WHERE id = $1';
+        result = await Faculty.findByIdAndDelete(id);
       }
 
-      const result = await pool.query(query, [id]);
-
-      if (result.rowCount === 0) {
+      if (!result) {
         return res.status(404).json({
           success: false,
           message: 'User not found'
@@ -145,6 +207,7 @@ const userController = {
       });
 
     } catch (error) {
+      console.error('Delete user error:', error);
       res.status(500).json({
         success: false,
         message: 'Internal server error'
@@ -203,14 +266,45 @@ const userController = {
       // Execute queries
       const results = [];
 
-      if (studentsQuery) {
-        const studentsResult = await pool.query(studentsQuery, params);
-        results.push(...studentsResult.rows);
+      // Helper for mapping
+      const mapUser = (u, r) => {
+        const obj = u.toObject();
+        obj.id = obj._id;
+        delete obj._id;
+        delete obj.password_hash;
+        obj.role = r;
+        return obj;
+      };
+
+      // Search Students
+      if (!role || role === 'student') {
+        const query = {};
+        if (search) {
+          query.$or = [
+            { name: { $regex: search, $options: 'i' } },
+            { email: { $regex: search, $options: 'i' } }
+          ];
+        }
+        if (year) query.year = year;
+        if (department) query.department = department;
+
+        const students = await Student.find(query);
+        results.push(...students.map(s => mapUser(s, 'student')));
       }
 
-      if (facultyQuery) {
-        const facultyResult = await pool.query(facultyQuery, params);
-        results.push(...facultyResult.rows);
+      // Search Faculty
+      if (!role || role === 'faculty') {
+         const query = {};
+         if (search) {
+          query.$or = [
+            { name: { $regex: search, $options: 'i' } },
+            { email: { $regex: search, $options: 'i' } }
+          ];
+        }
+        if (department) query.department = department;
+
+        const faculty = await Faculty.find(query);
+        results.push(...faculty.map(f => mapUser(f, 'faculty')));
       }
 
       res.json({
@@ -226,6 +320,7 @@ const userController = {
       });
 
     } catch (error) {
+      console.error('Search user error:', error);
       res.status(500).json({
         success: false,
         message: 'Internal server error'

@@ -13,7 +13,7 @@ const ForgotPassword = () => {
   const [otp, setOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [resetToken, setResetToken] = useState('');
+  // const [resetToken, setResetToken] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -28,7 +28,7 @@ const ForgotPassword = () => {
     setLoading(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/password-reset/forgot-password`, {
+      const response = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -66,7 +66,7 @@ const ForgotPassword = () => {
     setLoading(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/password-reset/verify-otp`, {
+      const response = await fetch(`${API_BASE_URL}/api/auth/verify-otp`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -81,7 +81,7 @@ const ForgotPassword = () => {
         return;
       }
 
-      setResetToken(data.data.resetToken);
+      // setResetToken(data.data.resetToken);
       setSuccess(data.message);
       setStep(3);
     } catch (err) {
@@ -110,14 +110,14 @@ const ForgotPassword = () => {
     setLoading(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/password-reset/reset-password`, {
+      const response = await fetch(`${API_BASE_URL}/api/auth/reset-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           email,
-          resetToken,
+          otp,
           newPassword,
           confirmPassword,
           userType

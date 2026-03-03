@@ -1,0 +1,110 @@
+[
+  {
+    "name": "Dr. M. K. Kavitha Devi",
+    "email": "mkkdit@tce.edu",
+    "designation": "HOD",
+    "employee_id": "HOD001",
+    "phone": "+91 9876500001",
+    "department": "Computer Science and Business Systems",
+    "password": "faculty123"
+  },
+  {
+    "name": "Dr. S. Karthiga",
+    "email": "skait@tce.edu",
+    "designation": "Associate Professor",
+    "employee_id": "FAC002",
+    "phone": "+91 9876500002",
+    "department": "Computer Science and Business Systems",
+    "password": "faculty123"
+  },
+  {
+    "name": "Dr. J. Felicia Lilian",
+    "email": "jflcse@tce.edu",
+    "designation": "Assistant Professor",
+    "employee_id": "FAC003",
+    "phone": "+91 9876500003",
+    "department": "Computer Science and Business Systems",
+    "password": "faculty123"
+  },
+  {
+    "name": "Mr. V. Janakiraman",
+    "email": "vjncse@tce.edu",
+    "designation": "Assistant Professor",
+    "employee_id": "FAC004",
+    "phone": "+91 9876500004",
+    "department": "Computer Science and Business Systems",
+    "password": "faculty123"
+  },
+  {
+    "name": "Dr. P. Suganthi",
+    "email": "psica@tce.edu",
+    "designation": "Assistant Professor",
+    "employee_id": "FAC005",
+    "phone": "+91 9876500005",
+    "department": "Computer Science and Business Systems",
+    "password": "faculty123"
+  },
+  {
+    "name": "Ms. R. Subhashni",
+    "email": "rsica@tce.edu",
+    "designation": "Assistant Professor",
+    "employee_id": "FAC006",
+    "phone": "+91 9876500006",
+    "department": "Computer Science and Business Systems",
+    "password": "faculty123"
+  },
+  {
+    "name": "Ms. Priya Thiagarajan",
+    "email": "ptca@tce.edu",
+    "designation": "Assistant Professor",
+    "employee_id": "FAC007",
+    "phone": "+91 9876500007",
+    "department": "Computer Science and Business Systems",
+    "password": "faculty123"
+  },
+  {
+    "name": "Mr. T. Siva",
+    "email": "tsca@tce.edu",
+    "designation": "Assistant Professor",
+    "employee_id": "FAC008",
+    "phone": "+91 9876500008",
+    "department": "Computer Science and Business Systems",
+    "password": "faculty123"
+  },
+  {
+    "name": "Mr. M. Venkatesh",
+    "email": "mvhca@tce.edu",
+    "designation": "Assistant Professor",
+    "employee_id": "FAC009",
+    "phone": "+91 9876500009",
+    "department": "Computer Science and Business Systems",
+    "password": "faculty123"
+  },
+  {
+    "name": "Mr. M. Gowtham Sethupathi",
+    "email": "mgsca@tce.edu",
+    "designation": "Assistant Professor",
+    "employee_id": "FAC010",
+    "phone": "+91 9876500010",
+    "department": "Computer Science and Business Systems",
+    "password": "faculty123"
+  },
+  {
+    "name": "Mrs. D. Yuvasini",
+    "email": "dyica@tce.edu",
+    "designation": "Assistant Professor",
+    "employee_id": "FAC011",
+    "phone": "+91 9876500011",
+    "department": "Computer Science and Business Systems",
+    "password": "faculty123"
+  },
+  {
+    "name": "Mrs. S. Sugantha",
+    "email": "ssaca@tce.edu",
+    "designation": "Assistant Professor",
+    "employee_id": "FAC012",
+    "phone": "+91 9876500012",
+    "department": "Computer Science and Business Systems",
+    "password": "faculty123"
+  }
+]

@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { LogOut } from 'lucide-react';
 
 const Navigation = () => {
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
 
   const handleLogout = () => {
     logout();
@@ -25,6 +25,15 @@ const Navigation = () => {
             <h1 className="text-lg font-semibold text-white">TCE</h1>
           </div>
         </div>
+
+        {/* Center - Admin Link (for HOD/Admin) */}
+        {user && (user.role === 'hod' || user.role === 'admin') && (
+            <div className="hidden md:flex items-center">
+                <Button variant="ghost" asChild className="text-white hover:text-white hover:bg-white/10">
+                    <a href="/admin/dashboard">Admin Dashboard</a>
+                </Button>
+            </div>
+        )}
 
         {/* Rightmost corner - Logout button */}
         <div className="flex items-center">
